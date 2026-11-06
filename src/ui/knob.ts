@@ -25,9 +25,11 @@ export function createKnob(o: KnobOptions): KnobEl {
   const arc=$('.arc',el), ind=$('.ind',el);
   function paint(){ arc.setAttribute('stroke-dasharray',`${ARC*n} ${TRACK}`); ind.setAttribute('transform',`rotate(${-135+270*n} 30 30)`); const t=fmt(get()); val.textContent=t; el.setAttribute('aria-valuetext',t); }
   function setN(nn: number){ n=clamp(nn,0,1); set(fromN(n)); paint(); }
-  let sy=0,sn=0;
-  el.addEventListener('pointerdown',e=>{ e.stopPropagation(); try{el.setPointerCapture(e.pointerId);}catch(_){} sy=e.clientY; sn=n; el.focus(); e.preventDefault(); });
-  el.addEventListener('pointermove',e=>{ if(!(e.buttons&1))return; setN(sn+(sy-e.clientY)/(e.shiftKey?900:180)); });
+  let sy=0,sn=0,moved=false;
+  el.addEventListener('pointerdown',e=>{ e.stopPropagation(); try{el.setPointerCapture(e.pointerId);}catch(_){} sy=e.clientY; sn=n; moved=false; el.focus(); e.preventDefault(); });
+  el.addEventListener('pointermove',e=>{ if(!(e.buttons&1))return; if(Math.abs(sy-e.clientY)>3)moved=true; setN(sn+(sy-e.clientY)/(e.shiftKey?900:180)); });
+  // タッチでドラッグせずに離したら「用語タップ」として通知（スマホでホバーの代わり）
+  el.addEventListener('pointerup',e=>{ if(!moved&&e.pointerType!=='mouse'&&term)el.dispatchEvent(new CustomEvent('termtap',{bubbles:true,detail:{term,anchor:lab}})); });
   el.addEventListener('wheel',e=>{ e.preventDefault(); setN(n-Math.sign(e.deltaY)*(e.shiftKey?.005:.025)); },{passive:false});
   el.addEventListener('dblclick',()=>{ n=toN(def); set(def); paint(); });
   el.addEventListener('keydown',e=>{ const st=e.shiftKey?.005:.025; if(e.key==='ArrowUp'||e.key==='ArrowRight'){setN(n+st);e.preventDefault();} if(e.key==='ArrowDown'||e.key==='ArrowLeft'){setN(n-st);e.preventDefault();} });

@@ -288,16 +288,35 @@ function loop(){
 
 /* ================= TOOLTIP ================= */
 const tip=$('#tip');
-document.addEventListener('pointerover',e=>{
-  const tg=e.target as any; const el=tg.closest&&tg.closest('[data-term]'); if(!el||e.pointerType==='touch'){return;}
-  const t=T[el.dataset.term]; if(!t)return;
+let tipT=0;
+function showTip(el: HTMLElement, term: string){
+  const t=T[term]; if(!t)return;
   tip.innerHTML=`<span class="en">${t.en}</span><b>${t.n}</b>${t.d}`;
   const r=el.getBoundingClientRect(); tip.style.opacity=1;
   const tw=tip.offsetWidth, th=tip.offsetHeight;
   let x=clamp(r.left+r.width/2-tw/2,8,innerWidth-tw-8), y=r.top-th-8; if(y<8)y=r.bottom+8;
   tip.style.left=x+'px'; tip.style.top=y+'px';
+}
+const hideTip=()=>{ tip.style.opacity=0; };
+// マウス：ホバーで表示
+document.addEventListener('pointerover',e=>{
+  if(e.pointerType!=='mouse')return;
+  const tg=e.target as any; const el=tg.closest&&tg.closest('[data-term]'); if(!el)return;
+  showTip(el,el.dataset.term);
 });
-document.addEventListener('pointerout',e=>{ const tg=e.target as any; const el=tg.closest&&tg.closest('[data-term]'); if(el)tip.style.opacity=0; });
+document.addEventListener('pointerout',e=>{ const tg=e.target as any; const el=tg.closest&&tg.closest('[data-term]'); if(el)hideTip(); });
+// タッチ：用語をタップで表示（ボタンは操作を優先して出さない）。5秒で消える
+const noHover=matchMedia('(hover: none)');
+function tapTip(el: HTMLElement, term: string){ showTip(el,term); clearTimeout(tipT); tipT=window.setTimeout(hideTip,5000); }
+document.addEventListener('click',e=>{
+  if(!noHover.matches)return;
+  const tg=e.target as any; if(tg.closest&&tg.closest('.knob'))return; // ノブは termtap で処理
+  const el=tg.closest&&tg.closest('[data-term]');
+  if(!el||el.closest('button')){ hideTip(); return; }
+  tapTip(el,el.dataset.term);
+});
+document.addEventListener('termtap',(e: any)=>tapTip(e.detail.anchor,e.detail.term));
+addEventListener('scroll',hideTip,{passive:true});
 
 /* ================= PROJECT / TIMELINE ================= */
 const TL=16;
@@ -472,9 +491,30 @@ function termCard(k){
     t.demo?h('button',{class:'play-mini',title:'聞いてみる',onclick:()=>demo(t.demo)},'▶'):h('span',{}),
     h('p',{},t.d));
 }
+const curStep=()=>CH[P.ch].steps.find(s=>!P.done[s.id]);
+/* ---- スマホ用：下部タブと現在ステップの帯 ---- */
+const isMobile=()=>matchMedia('(max-width:760px)').matches;
+const SYNTH_FOCUS=['osc','amp','env','filter','lfo','noise','space','pad'];
+function setMTab(t: string){
+  document.body.dataset.mtab=t; hideTip();
+  $$('#mtabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));
+  const cur=curStep(), f=cur&&cur.focus;
+  const m=f&&((t==='synth'&&SYNTH_FOCUS.includes(f))||(t==='tl'&&(f==='tl'||f==='master'||f==='pad')))?$('#m-'+f):null;
+  // 非表示中に描いたグラフは幅0になるので、表示してから描き直す
+  requestAnimationFrame(()=>{ redrawAll(); if(m)m.scrollIntoView({block:'center'}); else scrollTo(0,0); });
+}
+function renderStrip(){
+  const c=CH[P.ch], st=$('#mstrip'), cur=curStep(); st.innerHTML='';
+  const idx=cur?c.steps.indexOf(cur)+1:c.steps.length;
+  st.append(...[h('span',{class:'no'},cur?`STEP ${idx}/${c.steps.length}`:'CLEAR!'),
+    h('span',{class:'txt'},cur?cur.t:'この章はクリア！ ガイドから次の章へ進もう'),
+    cur&&cur.demo?h('button',{class:'pl',onclick:()=>demo(cur.demo)},'▶'):null,
+    h('button',{onclick:()=>setMTab('guide')},'ガイド')].filter(Boolean));
+}
 function renderGuide(){
   const c=CH[P.ch], g=$('#guide'); g.innerHTML='';
-  const cur=c.steps.find(s=>!P.done[s.id]);
+  const cur=curStep();
+  renderStrip();
   g.append(
     h('div',{class:'chnum'},String(P.ch).padStart(2,'0'),h('small',{},'CH. / '+c.tag)),
     h('div',{class:'chtitle'},c.title),
@@ -505,6 +545,7 @@ function applyLocks(){
   $('#m-space').classList.toggle('locked',r<6);
   $('#m-tl').classList.toggle('locked',r<7);
   $('#m-master').classList.toggle('locked',r<9);
+  $('#mtabs [data-tab="tl"]').disabled=r<7;
   renderTL();
   $('#waveSub').classList.toggle('locked',r<1);
   $('#keysWrap').classList.toggle('locked',r<1);
@@ -515,6 +556,7 @@ function goCh(i){
   P.ch=i; P.reach=Math.max(P.reach,i);
   for(const k of CH[i].terms) if(!P.learned.includes(k))P.learned.push(k);
   save(); renderTabs(); renderGuide(); applyLocks();
+  if(isMobile()&&document.body.dataset.mtab!=='guide')setMTab('guide');
   $('#guide').scrollTop=0;
   if(innerWidth<920)scrollTo({top:0,behavior:'smooth'});
 }
@@ -535,7 +577,18 @@ $('#recipeBtn').onclick=()=>{
   const txt=JSON.stringify(projectJSON(),null,2);
   try{ navigator.clipboard.writeText(txt).then(()=>toast('RECIPE COPIED — プロジェクト全体の設定をコピーしました'),()=>toast('コピーできませんでした')); }catch(e){ toast('コピーできませんでした'); }
 };
-$('#go').onclick=()=>{ ctx.resume(); $('#start').classList.remove('show'); demo({wave:'sine',freq:880,a:.005,d:.6,s:0,r:.6,_dur:.7}); };
+/* iPhone はマナーモードだと Web Audio が鳴らないため、
+   再生カテゴリに切り替える（audioSession API ＋ 無音オーディオのループ再生）。 */
+let silentEl: HTMLAudioElement|null=null;
+function unlockIOSAudio(){
+  try{ const na: any=navigator; if(na.audioSession)na.audioSession.type='playback'; }catch(e){}
+  try{ if(!silentEl){ const url=URL.createObjectURL(toWav(ctx.createBuffer(1,Math.floor(ctx.sampleRate*.5),ctx.sampleRate)));
+      silentEl=new Audio(url); silentEl.loop=true; silentEl.setAttribute('playsinline',''); }
+    silentEl.play().catch(()=>{}); }catch(e){}
+}
+document.body.dataset.mtab='guide';
+$$('#mtabs button').forEach(b=>b.onclick=()=>setMTab(b.dataset.tab));
+$('#go').onclick=()=>{ unlockIOSAudio(); ctx.resume(); $('#start').classList.remove('show'); demo({wave:'sine',freq:880,a:.005,d:.6,s:0,r:.6,_dur:.7}); };
 
 addEventListener('resize',redrawAll);
 /* timeline bindings */
