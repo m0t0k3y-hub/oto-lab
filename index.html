@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>OTO/LAB — はじめてのサウンドデザイン</title>
 <meta name="description" content="シンセサイザーを触りながら学ぶ、はじめてのサウンドデザイン。用語から効果音づくり、WAV書き出しまでチュートリアル形式で学べる簡易DAW。">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -165,6 +165,13 @@
   <button class="go" id="go">▶ はじめる（音が出ます）</button>
 </div></div>
 
+<!-- スマホ（縦持ち）用：現在のステップ表示と下部タブ -->
+<div class="mstrip" id="mstrip"></div>
+<nav class="mtabs" id="mtabs">
+  <button data-tab="guide" class="on"><i style="background:var(--orange)"></i>ガイド</button>
+  <button data-tab="synth"><i style="background:var(--blue)"></i>シンセ</button>
+  <button data-tab="tl"><i style="background:var(--yellow)"></i>タイムライン</button>
+</nav>
 <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

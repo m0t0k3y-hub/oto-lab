@@ -205,3 +205,50 @@ main{display:grid;grid-template-columns:minmax(300px,380px) 1fr;gap:16px;padding
 #start .dots4 i{width:14px;height:14px;border-radius:50%}
 .how{font-size:12px;text-align:left;background:var(--white);border:1px solid var(--line);border-radius:8px;padding:10px 14px;margin-top:16px}
 .how li{margin:2px 0}
+
+/* ============ スマホ（縦持ち） ============ */
+.mtabs,.mstrip{display:none}
+@media (max-width:760px){
+  html,body{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+  body{-webkit-text-size-adjust:100%}
+  header{flex-wrap:wrap;gap:8px 10px;padding:10px 12px calc(10px) ;padding-top:calc(10px + env(safe-area-inset-top))}
+  .stage{display:none}
+  .tabs{order:3;flex-basis:100%}
+  #recipeBtn{margin-left:auto}
+  main{display:block;padding:10px 10px calc(150px + env(safe-area-inset-bottom))}
+  .guide{position:static;max-height:none;padding:16px}
+  .chnum{font-size:44px}
+  body[data-mtab="guide"] .rack{display:none}
+  body[data-mtab="synth"] .guide,body[data-mtab="tl"] .guide{display:none}
+  body[data-mtab="synth"] #m-tl,body[data-mtab="synth"] #m-master{display:none}
+  body[data-mtab="tl"] .scope,body[data-mtab="tl"] .mods{display:none}
+  .mods{grid-template-columns:1fr}
+  .mod.wide{grid-column:auto}
+  .mod.locked{min-height:64px}
+  .mod.locked > :not(.lockmsg):not(h3){display:none}
+  .mod.locked h3{opacity:.35}
+  .scope canvas{height:120px}
+  .scope .seg{width:150px}
+  .perform{gap:10px;padding:10px}
+  .pad{width:74px;height:74px;font-size:12px}
+  .pad small{display:none}
+  .keys{height:96px}
+  .key{font-size:0}
+  .key.blk{height:58px}
+  .split{grid-template-columns:1fr}
+  .mtabs{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--panel);border-top:1px solid var(--line);padding:6px 8px calc(6px + env(safe-area-inset-bottom));gap:6px}
+  .mtabs button{flex:1;font-size:12px;font-weight:500;padding:10px 0;border-radius:10px;border:1px solid var(--line);background:var(--white);display:flex;align-items:center;justify-content:center;gap:6px}
+  .mtabs button i{width:8px;height:8px;border-radius:50%;display:block}
+  .mtabs button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .mtabs button:disabled{opacity:.3}
+  .mstrip{position:fixed;left:8px;right:8px;bottom:calc(62px + env(safe-area-inset-bottom));z-index:29;background:var(--ink);color:#fff;border-radius:12px;padding:9px 10px 9px 12px;font-size:12px;line-height:1.5;gap:10px;align-items:center;box-shadow:0 6px 20px rgba(0,0,0,.2)}
+  body[data-mtab="synth"] .mstrip,body[data-mtab="tl"] .mstrip{display:flex}
+  .mstrip .no{font-family:var(--mono);color:var(--yellow);font-size:10px;letter-spacing:.06em;white-space:nowrap;align-self:flex-start;margin-top:2px}
+  .mstrip .txt{flex:1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .mstrip button{flex:none;border:1px solid #555;border-radius:99px;color:#fff;font-family:var(--mono);font-size:10.5px;padding:5px 10px}
+  .mstrip button.pl{background:var(--orange);border-color:var(--orange)}
+  #toast{bottom:calc(150px + env(safe-area-inset-bottom));max-width:calc(100vw - 24px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #tip{max-width:calc(100vw - 24px);pointer-events:none}
+  .dialog{padding:18px}
+  #start .big{font-size:36px}
+}
