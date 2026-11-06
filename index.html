@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OTO/LAB — はじめてのサウンドデザイン</title>
+<meta name="description" content="シンセサイザーを触りながら学ぶ、はじめてのサウンドデザイン。用語から効果音づくり、WAV書き出しまでチュートリアル形式で学べる簡易DAW。">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<header>
+  <div class="logo"><span class="dots"><i style="background:var(--orange)"></i><i style="background:var(--blue)"></i><i style="background:var(--green)"></i><i style="background:var(--ink)"></i></span>OTO/LAB</div>
+  <span class="stage">BETA</span>
+  <nav class="tabs" id="tabs"></nav>
+  <button class="hbtn" id="recipeBtn" title="今の音の設定をJSONでコピー">RECIPE ⧉</button>
+  <button class="hbtn" id="glossBtn">用語図鑑<span class="cnt" id="glossCnt">0</span></button>
+</header>
+
+<main>
+  <aside class="card guide" id="guide"></aside>
+
+  <section class="rack">
+    <div class="card scope">
+      <div class="top">
+        <span class="mono" style="font-size:11px;font-weight:700;letter-spacing:.14em">SCOPE</span>
+        <span class="meter" id="meter">— 音が鳴るとここに映ります</span>
+        <div class="seg" id="viewSeg">
+          <button data-v="wave" class="on" data-term="waveform">WAVE</button>
+          <button data-v="spec" data-term="spectrum">SPECTRUM</button>
+        </div>
+      </div>
+      <canvas id="scope"></canvas>
+    </div>
+
+    <div class="card perform" id="m-pad">
+      <button class="pad" id="pad">PLAY<small>押して鳴らす / Space</small></button>
+      <div class="keysWrap" id="keysWrap">
+        <div class="keys" id="keys"></div>
+        <div class="lockmsg">KEYBOARD — CH.01 で解放</div>
+      </div>
+    </div>
+
+    <div class="mods">
+      <div class="mod" id="m-osc">
+        <h3><span class="sq" style="background:var(--blue)"></span><span data-term="osc">OSC</span><span class="jp">音のもと</span><span class="id">01</span></h3>
+        <div class="sub" id="waveSub">
+          <div class="waves" id="waves"></div>
+        </div>
+        <div class="krow" id="k-osc"></div>
+        <div class="lockmsg"><span class="lk">✕</span>CH.00 で解放</div>
+      </div>
+      <div class="mod" id="m-amp">
+        <h3><span class="sq" style="background:var(--grey)"></span>AMP<span class="jp">音量</span><span class="id">02</span></h3>
+        <div class="krow" id="k-amp"></div>
+        <div class="lockmsg"><span class="lk">✕</span>CH.00 で解放</div>
+      </div>
+      <div class="mod" id="m-env">
+        <h3><span class="sq" style="background:var(--green)"></span><span data-term="env">ENV</span><span class="jp">時間変化</span><span class="id">03</span></h3>
+        <canvas class="graph" id="envGraph"></canvas>
+        <div class="krow" id="k-env"></div>
+        <div class="lockmsg"><span class="lk">✕</span>CH.02 で解放</div>
+      </div>
+      <div class="mod" id="m-filter">
+        <h3><span class="sq" style="background:var(--orange)"></span><span data-term="filter">FILTER</span><span class="jp">音色を削る</span><span class="id">04</span></h3>
+        <div class="seg" id="ftypeSeg">
+          <button data-v="lowpass" class="on" data-term="lpf">LOW PASS</button>
+          <button data-v="highpass" data-term="hpf">HIGH PASS</button>
+        </div>
+        <canvas class="graph" id="filtGraph"></canvas>
+        <div class="krow" id="k-filter"></div>
+        <div class="lockmsg"><span class="lk">✕</span>CH.03 で解放</div>
+      </div>
+      <div class="mod" id="m-lfo">
+        <h3><span class="sq" style="background:var(--yellow)"></span><span data-term="lfo">LFO</span><span class="jp">ゆらす</span><span class="id">05</span></h3>
+        <div class="seg" id="lfoTargetSeg">
+          <button data-v="pitch" class="on" data-term="vibrato">PITCH</button>
+          <button data-v="amp" data-term="tremolo">AMP</button>
+          <button data-v="filter" data-term="wah">FILTER</button>
+        </div>
+        <canvas class="graph" id="lfoGraph"></canvas>
+        <div class="seg" id="lfoWaveSeg">
+          <button data-v="sine" class="on" data-term="sine">SINE</button>
+          <button data-v="triangle" data-term="tri">TRI</button>
+          <button data-v="square" data-term="square">SQUARE</button>
+        </div>
+        <div class="krow" id="k-lfo"></div>
+        <div class="lockmsg"><span class="lk">✕</span>CH.04 で解放</div>
+      </div>
+      <div class="mod" id="m-noise">
+        <h3><span class="sq" style="background:var(--ink)"></span><span data-term="noise">NOISE</span><span class="jp">ザー</span><span class="id">06</span></h3>
+        <div class="krow" id="k-noise" style="flex-direction:column;align-items:center;gap:10px"></div>
+        <div class="lockmsg"><span class="lk">✕</span>CH.05 で解放</div>
+      </div>
+      <div class="mod wide" id="m-space">
+        <h3><span class="sq" style="background:var(--blue)"></span>SPACE<span class="jp">空間・響き</span><span class="id">07</span></h3>
+        <canvas class="graph" id="spaceGraph"></canvas>
+        <div class="split">
+          <div><div class="subt" data-term="reverb">REVERB</div><div class="krow" id="k-rev"></div></div>
+          <div><div class="subt" data-term="delay">DELAY</div><div class="krow" id="k-dly"></div></div>
+        </div>
+        <div class="lockmsg"><span class="lk">✕</span>CH.06 で解放</div>
+      </div>
+    </div>
+
+    <div class="mod" id="m-tl">
+      <h3><span class="sq" style="background:var(--yellow)"></span><span data-term="timeline">TIMELINE</span><span class="jp">時間に並べる</span><span class="id">08</span></h3>
+      <div class="tlbar">
+        <button class="tbtn play" id="tPlay">▶ PLAY</button>
+        <div class="bpm"><span class="il" data-term="bpm">BPM</span><button class="ib" id="bpmDn">−</button><span class="iv" id="bpmV">120</span><button class="ib" id="bpmUp">＋</button></div>
+        <span class="tm mono" id="tTime">0.00 s</span>
+        <span style="flex:1"></span>
+        <button class="ib" id="sampleBtn">お手本プロジェクトを読み込む</button>
+        <button class="ib" id="restoreBtn" hidden>↺ 元に戻す</button>
+        <button class="ib" id="clearBtn">全クリップ消去</button>
+      </div>
+      <div class="tlgrid">
+        <div class="ruler"><div>TRACK</div><div class="rl" id="ruler"></div></div>
+        <div id="tlTracks"></div>
+        <div class="phwrap"><div id="playhead"></div></div>
+      </div>
+      <div class="insp" id="tlInsp"></div>
+      <div class="lockmsg"><span class="lk">✕</span>CH.07 で解放</div>
+    </div>
+
+    <div class="mod" id="m-master">
+      <h3><span class="sq" style="background:var(--ink)"></span><span data-term="master">MASTER</span><span class="jp">仕上げ・書き出し</span><span class="id">09</span></h3>
+      <div class="mrow">
+        <div id="k-master"></div>
+        <div class="mctl">
+          <button class="tbtn" id="normBtn" data-term="normalize">NORMALIZE: OFF</button>
+          <button class="tbtn play" id="renderBtn" data-term="render">RENDER</button>
+          <button class="tbtn" id="listenBtn" disabled>▶ LISTEN</button>
+          <button class="tbtn" id="dlBtn" disabled data-term="wav">⇩ WAV</button>
+        </div>
+        <div class="mview"><canvas id="rCanvas"></canvas><div class="rstat mono" id="rStat">RENDER を押すと、全体を書き出した波形がここに出ます</div></div>
+      </div>
+      <div class="lockmsg"><span class="lk">✕</span>CH.09 で解放</div>
+    </div>
+  </section>
+</main>
+
+<div id="tip"></div>
+<div id="toast"></div>
+
+<div class="overlay" id="glossary"><div class="dialog">
+  <button class="close" id="glossClose">CLOSE ✕</button>
+  <h2>用語図鑑</h2>
+  <div style="font-size:12px;color:var(--mute)">章を開くと、その章の用語が登録されます。▶ で音を確かめられます。</div>
+  <div class="gl" id="glList"></div>
+</div></div>
+
+<div class="overlay show" id="start"><div class="dialog">
+  <div class="dots4"><i style="background:var(--orange)"></i><i style="background:var(--blue)"></i><i style="background:var(--green)"></i><i style="background:var(--ink)"></i></div>
+  <div class="big">OTO/LAB</div>
+  <p>シンセサイザーを触りながら学ぶ、<br>はじめてのサウンドデザイン。</p>
+  <ul class="how">
+    <li><b>ノブ</b>：上下にドラッグで回す（Shiftで微調整、ダブルクリックで初期値）</li>
+    <li><b>点線の下線がある言葉</b>：マウスを乗せると意味が出ます</li>
+    <li><b>左のガイド</b>：指示どおりに音を鳴らすとチェックが付きます</li>
+  </ul>
+  <button class="go" id="go">▶ はじめる（音が出ます）</button>
+</div></div>
+
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>

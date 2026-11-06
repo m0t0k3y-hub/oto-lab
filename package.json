@@ -1,0 +1,19 @@
+{
+  "name": "oto-lab",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "シンセサイザーを触りながら学ぶ、はじめてのサウンドデザイン",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "deploy": "npm run build && wrangler deploy"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "vite": "^6.0.0",
+    "wrangler": "^4.0.0"
+  }
+}

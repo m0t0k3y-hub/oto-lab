@@ -1,0 +1,8 @@
+# Cloudflare Workers（静的アセット配信）の設定
+# ビルド結果の dist/ をそのまま配信する。
+name = "oto-lab"
+compatibility_date = "2026-11-01"
+
+[assets]
+directory = "./dist"
+not_found_handling = "single-page-application"
