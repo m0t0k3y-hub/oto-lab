@@ -20,7 +20,9 @@ const chDone=i=>CH[i].steps&&CH[i].steps.every(s=>P.done[s.id]);
 
 /* ================= APP AUDIO ================= */
 const AC=window.AudioContext||(window as any).webkitAudioContext;
-const ctx=new AC();
+// タッチ端末（スマホ）は処理落ちしやすいので、音声バッファを大きめにとる
+const LOW_POWER=matchMedia('(hover: none)').matches;
+const ctx=new AC({latencyHint:LOW_POWER?'playback':'interactive'});
 const S={...DEF};
 let view='wave';
 const lim=ctx.createDynamicsCompressor();
@@ -247,7 +249,11 @@ function drawSpace(){
   c.fillText('■ 元の音   ▮ ディレイ   ▬ リバーブ',w-4,10); c.textAlign='left';
 }
 const tbuf=new Float32Array(analyser.fftSize), fbuf=new Float32Array(analyser.frequencyBinCount);
-function loop(){
+let lastFrame=0;
+function loop(now=0){
+  // スマホでは描画を 30fps に間引いて CPU を音に回す
+  if(LOW_POWER&&now-lastFrame<32){ requestAnimationFrame(loop); return; }
+  lastFrame=now;
   const [c,w,hh]=fit($('#scope'));
   c.fillStyle='#161616'; c.fillRect(0,0,w,hh);
   c.strokeStyle='#262626'; c.lineWidth=1;
@@ -260,7 +266,7 @@ function loop(){
     const n=1024;
     c.beginPath();
     for(let i=0;i<n;i++){ const v=tbuf[st+i]||0; peak=Math.max(peak,Math.abs(v)); const x=i/(n-1)*w, y=hh/2-v*(hh/2-8)*1.6; i?c.lineTo(x,y):c.moveTo(x,y); }
-    c.strokeStyle='#ffc21a'; c.lineWidth=2; c.shadowColor='#ffc21a'; c.shadowBlur=6; c.stroke(); c.shadowBlur=0;
+    c.strokeStyle='#ffc21a'; c.lineWidth=2; if(!LOW_POWER){ c.shadowColor='#ffc21a'; c.shadowBlur=6; } c.stroke(); c.shadowBlur=0;
     c.fillStyle='#555'; c.font='10px IBM Plex Mono, monospace'; c.fillText('TIME →',8,hh-8);
   }else{
     analyser.getFloatFrequencyData(fbuf);
