@@ -37,9 +37,20 @@ export function makeRig(ac: BaseAudioContext, out: AudioNode): Rig {
   R.dry=ac.createGain(); R.conv=ac.createConvolver(); R.revWet=ac.createGain(); R.revWet.gain.value=0;
   R.delay=ac.createDelay(2); R.fb=ac.createGain(); R.dlyWet=ac.createGain(); R.dlyWet.gain.value=0;
   R.input.connect(R.dry); R.dry.connect(out);
-  R.input.connect(R.conv); R.conv.connect(R.revWet); R.revWet.connect(out);
-  R.input.connect(R.delay); R.delay.connect(R.fb); R.fb.connect(R.delay); R.delay.connect(R.dlyWet); R.dlyWet.connect(out); R.dlyWet.connect(R.conv);
+  R.revWet.connect(out); R.dlyWet.connect(out); R.delay.connect(R.fb); R.fb.connect(R.delay);
   R.irSec=0;
+  /* リバーブ（畳み込み）は非常に重いので、MIX が 0 のあいだは配線を外して計算させない。
+     ディレイも同様。切るときは残響が消えるのを少し待ってから外す（リアルタイム時のみ）。 */
+  const offline=typeof OfflineAudioContext!=='undefined'&&ac instanceof OfflineAudioContext;
+  const later=(fn: ()=>void)=>{ if(offline)fn(); else setTimeout(fn,400); };
+  const tryDis=(a: AudioNode,b: AudioNode)=>{ try{a.disconnect(b);}catch(e){} };
+  R.revOn=false; R.dlyOn=false;
+  const setRev=(on: boolean)=>{ if(on===R.revOn)return; R.revOn=on;
+    if(on){ R.input.connect(R.conv); R.dlyWet.connect(R.conv); R.conv.connect(R.revWet); }
+    else later(()=>{ if(R.revOn)return; tryDis(R.input,R.conv); tryDis(R.dlyWet,R.conv); tryDis(R.conv,R.revWet); }); };
+  const setDly=(on: boolean)=>{ if(on===R.dlyOn)return; R.dlyOn=on;
+    if(on){ R.input.connect(R.delay); R.delay.connect(R.dlyWet); }
+    else later(()=>{ if(R.dlyOn)return; tryDis(R.input,R.delay); tryDis(R.delay,R.dlyWet); }); };
   R.apply=(p: Recipe, doIR=true)=>{
     const t=ac.currentTime, sm=(prm: AudioParam, v: number)=>prm.setTargetAtTime(v,t,.015);
     R.lfo.type=p.lfoWave; sm(R.lfo.frequency,p.lfoRate);
@@ -48,7 +59,9 @@ export function makeRig(ac: BaseAudioContext, out: AudioNode): Rig {
     sm(R.lfoAmp.gain,p.lfoTarget==='amp'?p.lfoDepth/2:0);
     sm(R.dry.gain,1-p.revMix*.5); sm(R.revWet.gain,p.revMix*1.1);
     sm(R.delay.delayTime,p.dlyTime); sm(R.fb.gain,p.dlyFb); sm(R.dlyWet.gain,p.dlyMix);
-    if(doIR&&Math.abs(p.revTime-R.irSec)>.005){ R.irSec=p.revTime; R.conv.buffer=makeIR(ac,p.revTime); }
+    const revOn=p.revMix>.001;
+    if(revOn&&doIR&&Math.abs(p.revTime-R.irSec)>.005){ R.irSec=p.revTime; R.conv.buffer=makeIR(ac,p.revTime); }
+    setRev(revOn&&!!R.conv.buffer); setDly(p.dlyMix>.001);
   };
   R.voice=(freq: number, p: PlayParams, when?: number): Voice=>{
     const t=Math.max(when??0,ac.currentTime+.005);
