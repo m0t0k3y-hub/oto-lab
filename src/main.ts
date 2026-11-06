@@ -174,14 +174,17 @@ const noteFreq=i=>261.63*Math.pow(2,i/12);
 function keyOn(i){ if(P.reach<1)return; keyEls[i].classList.add('down'); if(selClip&&P.reach>=7){ selClip.c.note=60+i; renderTL(); saveProj(); } noteOn('k'+i,noteFreq(i),S,true,'key'); }
 function keyOff(i){ keyEls[i]?.classList.remove('down'); noteOff('k'+i); }
 addEventListener('keydown',e=>{
-  if(e.repeat||e.metaKey||e.ctrlKey||e.altKey)return;
+  if(e.metaKey||e.ctrlKey||e.altKey)return;
   if($('#start').classList.contains('show'))return;
+  // Space は押しっぱなしのキーリピート中もスクロールを止める（PLAY は最初の1回だけ）
+  if(e.code==='Space'){ e.preventDefault(); if(!e.repeat)padDown(); return; }
+  if(e.repeat)return;
   if((e.key==='Delete'||e.key==='Backspace')&&selClip){ e.preventDefault(); deleteSel(); return; }
   if(e.key==='Escape'&&selClip){ selClip=null; renderTL(); return; }
-  if(e.code==='Space'){ e.preventDefault(); padDown(); return; }
   const i=PCK.indexOf(e.key.toLowerCase()); if(i>=0)keyOn(i);
 });
-addEventListener('keyup',e=>{ if(e.code==='Space'){padUp();return;} const i=PCK.indexOf(e.key.toLowerCase()); if(i>=0)keyOff(i); });
+// keyup でも止める：フォーカス中のボタンが Space で押されてしまうのを防ぐ
+addEventListener('keyup',e=>{ if(e.code==='Space'){ if(!$('#start').classList.contains('show'))e.preventDefault(); padUp(); return; } const i=PCK.indexOf(e.key.toLowerCase()); if(i>=0)keyOff(i); });
 addEventListener('blur',()=>{ padUp(); for(let i=0;i<13;i++)keyOff(i); });
 
 /* ================= GRAPHS ================= */
