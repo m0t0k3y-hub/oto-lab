@@ -50,7 +50,8 @@ function updateMix(){ const anySolo=tracks.some(t=>t.solo), now=ctx.currentTime;
   masterG.gain.setTargetAtTime(dbToGain(PROJ.master),now,.01); }
 const demoRig=makeRig(ctx,lim);
 const beat=createBeat({ctx,out:lim,emit:e=>emit(e),save:bp=>{ P.bproj=bp; save(); },toast:m=>toast(m),saved:P.bproj,
-  reach:()=>P.breach||0,ghost:()=>{ try{ return beatGhost(); }catch(e){ return null; } }});
+  reach:()=>P.breach||0,ghost:()=>{ try{ return beatGhost(); }catch(e){ return null; } },
+  ghostN:()=>{ try{ if(!isBeat())return null; const c=curStep(); return c&&c.ghostN||null; }catch(e){ return null; } }});
 const dummyFilter=ctx.createBiquadFilter();
 
 const voices=new Map();
@@ -523,7 +524,7 @@ function setMTab(t: string){
   document.body.dataset.mtab=t; hideTip();
   $$('#mtabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));
   const cur=curStep(), f=cur&&cur.focus;
-  const m=f&&((t==='synth'&&SYNTH_FOCUS.includes(f))||(t==='tl'&&(f==='tl'||f==='master'||f==='pad'))||(t==='seq'&&f==='seq'))?$('#m-'+f):null;
+  const m=f&&((t==='synth'&&SYNTH_FOCUS.includes(f))||(t==='tl'&&(f==='tl'||f==='master'||f==='pad'))||(t==='seq'&&(f==='seq'||f==='roll'||f==='song')))?$('#m-'+f):null;
   // 非表示中に描いたグラフは幅0になるので、表示してから描き直す
   requestAnimationFrame(()=>{ redrawAll(); if(m)m.scrollIntoView({block:'center'}); else scrollTo(0,0); });
 }
@@ -533,6 +534,7 @@ function renderStrip(){
   st.append(...[h('span',{class:'no'},cur?`STEP ${idx}/${c.steps.length}`:'CLEAR!'),
     h('span',{class:'txt'},cur?cur.t:'この章はクリア！ ガイドから次の章へ進もう'),
     cur&&cur.demo?h('button',{class:'pl',onclick:()=>demo(cur.demo)},'▶'):null,
+    isBeat()?h('button',{class:'tr',title:'シーケンサーの再生／停止',onclick:()=>beat.toggle()},'▶■'):null,
     h('button',{onclick:()=>setMTab('guide')},'ガイド')].filter(Boolean));
 }
 function renderGuide(){
@@ -552,10 +554,10 @@ function renderGuide(){
   );
   const nextI=chI()+1, next=chs()[nextI], open=next&&!next.soon;
   const endMsg=isBeat()
-    ?'BEAT コース第1段階クリア、おめでとうございます！ 四つ打ち・裏打ち・バックビート、テンポ、強弱とスウィング、パターンとフィル、そして WAV 書き出しまで、ステップシーケンサーの基本はひと通り身につきました。第2段階（ピアノロール・アシッドライン・アレンジ）は近日追加予定。そのあいだに SOUND コースで、音そのものをつくる方法にも挑戦してみてください。'
+    ?'BEAT コース全13章クリア、おめでとうございます！ 四つ打ちとハイハット、テンポとグルーヴ、パターンとフィル、ピアノロールでのベースとアシッドライン、スケールとコード、オートメーション、そしてアレンジと書き出しまで、テクノを1曲つくる流れはひと通り身につきました。次は SOUND コースで、キックやシンセの音そのものをつくる方法にも挑戦してみてください。'
     :'全9章クリア、おめでとうございます！ 音の正体から波形・エンベロープ・フィルター・LFO・ノイズ・空間、そしてタイムライン・レイヤー・マスタリングまで、サウンドデザインの基礎はひと通り身につきました。あとは自由に、あなただけの起動音や効果音をつくってみてください。';
   const clr=h('div',{class:'clear'+(chDone(chI())?' show':'')},
-    h('h4',{},open?'CHAPTER CLEAR!':(isBeat()?'STAGE 1 CLEAR!':'ALL CLEAR!')),
+    h('h4',{},open?'CHAPTER CLEAR!':'ALL CLEAR!'),
     h('p',{},open?(isBeat()?`「${c.title}」をマスター。次は「${next.title}」へ進もう。`:`「${c.title}」をマスター。次は「${next.title}」で新しいモジュールが解放されます。`):endMsg),
     open?h('button',{class:'next',onclick:()=>goCh(nextI)},'NEXT → CH.'+chLabel(nextI)):(isBeat()?h('button',{class:'next',onclick:()=>setCourse('sound')},'SOUND コースへ →'):null));
   g.append(clr);
