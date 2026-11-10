@@ -11,7 +11,7 @@ export interface Recipe {
   revMix: number; revTime: number; dlyTime: number; dlyFb: number; dlyMix: number;
 }
 /** お手本などで使う一時的な指定（_dur: 鳴らす秒数, _sweep: カットオフの自動変化） */
-export type Preset = Partial<Recipe> & { _dur?: number; _sweep?: [number, number] };
+export type Preset = Partial<Recipe> & { _dur?: number; _sweep?: [number, number]; beat?: any };
 export type PlayParams = Recipe & { _dur?: number; _sweep?: [number, number] };
 
 export interface Clip { start: number; len: number; note: number }
@@ -21,6 +21,8 @@ export interface Project { app: 'otolab'; v: number; bpm: number; master: number
 export interface Term { n: string; en: string; d: string; demo?: Preset }
 export interface Step {
   id: string; t: string; focus?: string; demo?: Preset;
+  /** BEAT コース：ここに置こう、の目印（トラック番号 → マス） */
+  ghost?: Record<number, number[]>;
   act?: { label: string; action: 'loadSample' };
   c: (e: any) => boolean;
 }

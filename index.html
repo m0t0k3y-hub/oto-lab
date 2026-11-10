@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>OTO/LAB — はじめてのサウンドデザイン</title>
-<meta name="description" content="シンセサイザーを触りながら学ぶ、はじめてのサウンドデザイン。用語から効果音づくり、WAV書き出しまでチュートリアル形式で学べる簡易DAW。">
+<title>OTO/LAB — はじめてのサウンドデザインとビートメイク</title>
+<meta name="description" content="シンセサイザーで音をつくる SOUND コースと、シーケンサーでテクノのビートを組む BEAT コース。用語からWAV書き出しまでチュートリアル形式で学べる簡易DAW。">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,6 +15,7 @@
 <header>
   <div class="logo"><span class="dots"><i style="background:var(--orange)"></i><i style="background:var(--blue)"></i><i style="background:var(--green)"></i><i style="background:var(--ink)"></i></span>OTO/LAB</div>
   <span class="stage">BETA</span>
+  <div class="course" id="courseSeg"><button data-c="sound">SOUND</button><button data-c="beat">BEAT</button></div>
   <nav class="tabs" id="tabs"></nav>
   <button class="hbtn" id="recipeBtn" title="今の音の設定をJSONでコピー">RECIPE ⧉</button>
   <button class="hbtn" id="glossBtn">用語図鑑<span class="cnt" id="glossCnt">0</span></button>
@@ -23,7 +24,13 @@
 <main>
   <aside class="card guide" id="guide"></aside>
 
-  <section class="rack">
+  <section class="rack beat-rack" id="beatRack">
+    <div class="mod" id="m-seq">
+      <h3><span class="sq" style="background:var(--orange)"></span><span data-term="sequencer">SEQUENCER</span><span class="jp">ステップシーケンサー</span><span class="id">B</span></h3>
+    </div>
+  </section>
+
+  <section class="rack sound-rack" id="soundRack">
     <div class="card scope">
       <div class="top">
         <span class="mono" style="font-size:11px;font-weight:700;letter-spacing:.14em">SCOPE</span>
@@ -156,21 +163,26 @@
 <div class="overlay show" id="start"><div class="dialog">
   <div class="dots4"><i style="background:var(--orange)"></i><i style="background:var(--blue)"></i><i style="background:var(--green)"></i><i style="background:var(--ink)"></i></div>
   <div class="big">OTO/LAB</div>
-  <p>シンセサイザーを触りながら学ぶ、<br>はじめてのサウンドデザイン。</p>
+  <p>ブラウザでさわって覚える、はじめての DAW。<br>どちらのコースからでも始められます。</p>
   <ul class="how">
     <li><b>ノブ</b>：上下にドラッグで回す（Shiftで微調整、ダブルクリックで初期値）</li>
     <li><b>点線の下線がある言葉</b>：マウスを乗せると意味が出ます</li>
     <li><b>左のガイド</b>：指示どおりに音を鳴らすとチェックが付きます</li>
   </ul>
-  <button class="go" id="go">▶ はじめる（音が出ます）</button>
+  <div class="courses">
+    <button class="cpick" id="goBeat"><b>BEAT</b><span>シーケンサーでテクノのビートを組む</span><small>DAW がはじめての人はこちら</small></button>
+    <button class="cpick" id="go"><b>SOUND</b><span>シンセサイザーで音そのものをつくる</span><small>効果音・起動音づくり</small></button>
+  </div>
+  <div class="gonote">▶ ボタンを押すと音が出ます。コースはあとから上の SOUND / BEAT で切り替えられます。</div>
 </div></div>
 
 <!-- スマホ（縦持ち）用：現在のステップ表示と下部タブ -->
 <div class="mstrip" id="mstrip"></div>
 <nav class="mtabs" id="mtabs">
   <button data-tab="guide" class="on"><i style="background:var(--orange)"></i>ガイド</button>
-  <button data-tab="synth"><i style="background:var(--blue)"></i>シンセ</button>
-  <button data-tab="tl"><i style="background:var(--yellow)"></i>タイムライン</button>
+  <button data-tab="synth" class="snd"><i style="background:var(--blue)"></i>シンセ</button>
+  <button data-tab="tl" class="snd"><i style="background:var(--yellow)"></i>タイムライン</button>
+  <button data-tab="seq" class="bt"><i style="background:var(--orange)"></i>シーケンサー</button>
 </nav>
 <script type="module" src="/src/main.ts"></script>
 </body>
