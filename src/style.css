@@ -252,3 +252,76 @@ main{display:grid;grid-template-columns:minmax(300px,380px) 1fr;gap:16px;padding
   .dialog{padding:18px}
   #start .big{font-size:36px}
 }
+
+/* ============ コース切り替え（SOUND / BEAT） ============ */
+.course{display:flex;border:1px solid var(--ink);border-radius:99px;overflow:hidden;flex:none}
+.course button{font-family:var(--mono);font-size:11px;letter-spacing:.08em;padding:4px 11px}
+.course button.on{background:var(--ink);color:var(--white)}
+.course button:not(.on):hover{background:var(--white)}
+body[data-course="beat"] #soundRack,body:not([data-course="beat"]) #beatRack{display:none}
+body[data-course="beat"] #recipeBtn{display:none}
+.courses{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.cpick{background:var(--white);border:1px solid var(--ink);border-radius:12px;padding:14px 12px;display:flex;flex-direction:column;gap:4px;text-align:left;transition:.15s}
+.cpick b{font-family:var(--mono);font-size:22px;letter-spacing:.06em}
+.cpick span{font-size:12.5px}
+.cpick small{font-family:var(--mono);font-size:10px;color:var(--mute);letter-spacing:.04em}
+.cpick:hover{background:var(--ink);color:var(--white)}
+.cpick:hover small{color:var(--yellow)}
+#goBeat{border-color:var(--orange);box-shadow:inset 0 0 0 1px var(--orange)}
+#goBeat:hover{background:var(--orange);color:#fff}
+#goBeat:hover small{color:#fff}
+.gonote{font-size:11px;color:var(--mute);margin-top:10px}
+
+/* ============ BEAT：シーケンサー ============ */
+#m-seq .tlbar{gap:10px}
+.bgrp{display:flex;align-items:center;gap:6px}
+.sublocked{opacity:.22;pointer-events:none;filter:grayscale(1)}
+.ib.tap{font-weight:700;letter-spacing:.1em;padding:5px 12px;border-color:var(--ink);touch-action:manipulation}
+.ib.tap.hit{background:var(--ink);color:var(--white)}
+.ib.on{background:var(--ink);color:var(--white);border-color:var(--ink)}
+.bgrid{display:grid;grid-template-columns:118px minmax(0,1fr);gap:7px 10px;align-items:center;background:var(--white);border:1px solid var(--line);border-radius:8px;padding:10px 10px 6px;user-select:none}
+.bhead{display:flex;align-items:center;justify-content:space-between;gap:4px}
+.bname{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.06em;display:flex;align-items:center;gap:6px}
+.bname i{width:9px;height:9px;border-radius:2px;display:block}
+.bms{display:flex;gap:3px}
+.bhint{font-size:9px;color:var(--mute);letter-spacing:.14em}
+.bsteps{display:grid;grid-template-columns:repeat(16,minmax(0,1fr));gap:4px}
+.bc{position:relative;aspect-ratio:1/1.12;border-radius:4px;background:var(--panel);border:1px solid var(--line);cursor:pointer;overflow:hidden;touch-action:none}
+.bc.g4{background:var(--panel2)}
+.bc:hover{border-color:var(--ink)}
+.bc i{position:absolute;left:0;right:0;bottom:0;height:0;background:var(--tc);display:block}
+.bc.on{border-color:var(--tc)}
+.bc.gh{border:1.5px dashed var(--ink);animation:ghost 1.2s ease-in-out infinite}
+@keyframes ghost{50%{border-color:var(--mute)}}
+.bc.ph{outline:2px solid var(--ink);outline-offset:1px}
+.bc.on.ph i{filter:brightness(1.15)}
+.bruler span{font-family:var(--mono);font-size:9.5px;color:var(--mute);text-align:center}
+.bruler span.bar{color:var(--ink);font-weight:700}
+.bpat{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:10px}
+.bseg{margin:0;width:auto}
+.bseg button{padding:4px 12px;flex:none}
+.bchain{display:flex;gap:4px}
+.bchain .slot{width:30px;height:26px;border:1px dashed var(--line);border-radius:5px;background:var(--white);font-family:var(--mono);font-size:12px;font-weight:700;color:var(--mute)}
+.bchain .slot.set{border:1px solid var(--ink);color:var(--ink)}
+.bchain .slot.ph{background:var(--ink);color:var(--white)}
+.bfoot{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:8px;min-height:18px}
+.bstat{font-size:10.5px;color:var(--mute);letter-spacing:.04em}
+.beat-rack{align-content:start}
+
+@media (max-width:760px){
+  .course{order:2}
+  .courses{grid-template-columns:1fr}
+  .mtabs button.bt{display:none}
+  body[data-course="beat"] .mtabs button.snd{display:none}
+  body[data-course="beat"] .mtabs button.bt{display:flex}
+  body[data-mtab="seq"] .guide{display:none}
+  body[data-mtab="seq"] .mstrip{display:flex}
+  /* 16マスは幅が足りないので 8マス × 2段で折り返す */
+  .bgrid{grid-template-columns:1fr;gap:4px;padding:8px}
+  .bhead{margin-top:6px}
+  .bsteps{grid-template-columns:repeat(8,minmax(0,1fr));gap:4px}
+  .bc{aspect-ratio:1/1}
+  .bhint{display:none}
+  .bruler{display:none}
+  #m-seq .tlbar{gap:8px}
+}
