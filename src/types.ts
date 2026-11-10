@@ -23,6 +23,8 @@ export interface Step {
   id: string; t: string; focus?: string; demo?: Preset;
   /** BEAT コース：ここに置こう、の目印（トラック番号 → マス） */
   ghost?: Record<number, number[]>;
+  /** BEAT コース：ピアノロールの目印（t = 0 BASS / 1 ACID / 2 CHORD） */
+  ghostN?: { t: number; notes: { s: number; n: number; len?: number }[] };
   act?: { label: string; action: 'loadSample' };
   c: (e: any) => boolean;
 }

@@ -4,7 +4,7 @@ import type { Chapter } from '../types';
    トラック番号：0 KICK / 1 CLAP / 2 C.HAT / 3 O.HAT
    パターンは「トラック × 16ステップ」のベロシティ（0 = 鳴らさない）。 */
 export type Pat = number[][];
-export interface BeatDemo { bpm: number; bars: number; swing?: number; seq: Pat[] }
+export interface BeatDemo { bpm: number; bars: number; swing?: number; seq: any[]; acid?: any }
 
 /** 置くマス（0始まり）から 16 ステップの配列をつくる */
 export const P16 = (on: number[] = [], v = 1): number[] => { const a = new Array(16).fill(0); on.forEach(i => a[i] = v); return a; };
@@ -20,7 +20,7 @@ export const SAMPLE_BEAT: { bpm: number; swing: number; pat: Pat } = {
   pat: [P16(FOUR), P16([12], .8), ALL16.map(i => HAT_V[i % 4]), P16(OFF, .7)],
 };
 const pat = (k: number[] = [], c: number[] = [], ch: number[] = [], oh: number[] = []): Pat => [P16(k), P16(c), P16(ch), P16(oh)];
-const D = (seq: Pat[], bars = 2, bpm = 124, swing = 0): { beat: BeatDemo } => ({ beat: { bpm, bars, swing, seq } });
+const D = (seq: any[], bars = 2, bpm = 124, swing = 0, acid?: any): { beat: BeatDemo } => ({ beat: { bpm, bars, swing, seq, acid } });
 const SAMPLE_D = (bpm = 124, bars = 2) => D([SAMPLE_BEAT.pat], bars, bpm, SAMPLE_BEAT.swing);
 
 /* ---- クリア判定のヘルパー ---- */
@@ -33,6 +33,32 @@ const sameAsSample = (P: number[][]) => P.every((r, i) => eq(r, SAMPLE_ON[i]));
 const total = (P: number[][]) => P.reduce((a, r) => a + r.length, 0);
 
 const FILL_B = [P16([0, 4, 8, 12, 13]), P16([12, 14, 15], .8), SAMPLE_BEAT.pat[2], P16(OFF, .7)];
+
+/* ---- 第2段階：ノートのお手本とヘルパー ---- */
+const ACID_P = { cut: .28, res: .78, env: .62, dec: .3 };
+const BASS_OFF = OFF.map(s => ({ s, n: 33, len: 1 }));
+const BASS_EAR = [{ s: 2, n: 33, len: 1 }, { s: 6, n: 33, len: 1 }, { s: 10, n: 36, len: 1 }, { s: 14, n: 31, len: 1 }];
+const ACID_SEQ = [45, 45, 57, 45, 48, 45, 55, 45, 45, 52, 45, 57, 45, 48, 43, 45];
+const ACID_PLAIN = ACID_SEQ.map((n, s) => ({ s, n: s % 4 === 2 ? 57 : 45, len: 1 }));
+const ACID_LINE = ACID_SEQ.map((n, s) => ({ s, n, len: 1, acc: [2, 6, 11].includes(s), sl: [3, 9].includes(s) }));
+const CHORD_AM = OFF.flatMap(s => [57, 60, 64].map(n => ({ s, n, len: 2 })));
+const CHORD_F = OFF.flatMap(s => [53, 57, 60].map(n => ({ s, n, len: 2 })));
+const RAMP = (a: number, b: number) => ALL16.map(i => +(a + (b - a) * i / 15).toFixed(2));
+const ARR_C = { d: [P16(FOUR), P16(), P16(EIGHTH, .6), P16(OFF, .7)] };
+const ARR_A = { d: SAMPLE_BEAT.pat, n: [BASS_OFF, ACID_LINE, []], au: { acid: RAMP(.15, .7) } };
+const ARR_D = { d: [P16(), P16(), P16(), P16(OFF, .5)], n: [[], [], CHORD_AM] };
+const starts = (ns: any[]) => [...new Set(ns.map(n => n.s))].sort((a, b) => a - b);
+const groups = (ns: any[]) => starts(ns).map(s => ns.filter(n => n.s === s));
+const starts3 = (ns: any[]) => groups(ns).filter(g => g.length >= 3).map(g => g[0].s);
+const low = (ns: any[]) => ns.length ? Math.min(...ns.map(n => n.n)) : 0;
+const avg = (a: number[]) => a.reduce((x, y) => x + y, 0) / a.length;
+const rising = (a: number[] | null) => !!a && avg(a.slice(12)) - avg(a.slice(0, 4)) >= .35;
+const kl = (e: any, pi: number) => e.D[pi][0].length === 0;
+const songPats = (e: any): number[] => e.song.map((b: any) => b.p);
+const brkThenKick = (e: any) => { const p = songPats(e); return p.some((x, i) => kl(e, x) && p.slice(i + 1).some(y => !kl(e, y))); };
+const songNotes = (e: any) => { const p = songPats(e); return p.some(x => e.notes[x][0].length > 0 || e.notes[x][1].length > 0) && p.some(x => e.notes[x][2].length > 0); };
+const songBrk = (e: any) => { const p = songPats(e); return p.some(x => kl(e, x)) && p.some(x => !kl(e, x)); };
+const songAuto = (e: any) => songPats(e).some(x => !!(e.auto[x].acid || e.auto[x].master));
 
 export const BCH: Chapter[] = [
  {tag:'DAW',title:'DAWってなに？',mods:['seq'],
@@ -102,12 +128,77 @@ export const BCH: Chapter[] = [
     c:e=>seq(e)&&e.mode==='chain'&&eq(e.chain,[0,0,0,1])},
    {id:'b6-4',focus:'seq',t:'⇩ WAV を押して書き出そう。CHAIN なら並べたとおり、PATTERN なら今のパターンを4小節ぶん書き出します。動画やほかの DAW で、ループ素材としてそのまま使えます。',c:e=>e.type==='wav'},
    {id:'b6-5',focus:'seq',demo:SAMPLE_D(124,4),t:'卒業課題：B00 のお手本に負けない、自分だけのミニマルループを作って書き出そう。条件は「4トラックすべてを使う」「強弱かスウィングを入れる」「A と B をつなげた CHAIN」の3つ。',
-    c:e=>e.type==='wav'&&e.mode==='chain'&&e.used.every(Boolean)&&(e.swing>.52||e.velVar)&&e.chain.includes(0)&&e.chain.includes(1)&&e.A.some((r,i)=>!eq(r,e.B[i]))},
+    c:e=>e.type==='wav'&&e.mode==='chain'&&e.used.slice(0,4).every(Boolean)&&(e.swing>.52||e.velVar)&&e.chain.includes(0)&&e.chain.includes(1)&&e.A.some((r,i)=>!eq(r,e.B[i]))},
   ]},
- {soon:2,tag:'PIANO ROLL',title:'ピアノロール — ベースライン',mods:[],intro:'',terms:[],steps:[]},
- {soon:2,tag:'ACID',title:'アシッドライン',mods:[],intro:'',terms:[],steps:[]},
- {soon:2,tag:'CHORD',title:'スケールとコード',mods:[],intro:'',terms:[],steps:[]},
- {soon:2,tag:'AUTOMATION',title:'オートメーション',mods:[],intro:'',terms:[],steps:[]},
- {soon:2,tag:'ARRANGE',title:'アレンジ — 抜き差し',mods:[],intro:'',terms:[],steps:[]},
- {soon:2,tag:'FINAL',title:'卒業制作',mods:[],intro:'',terms:[],steps:[]},
+ {tag:'PIANO ROLL',title:'ピアノロール — ベースライン',mods:['roll'],
+  intro:'ここからは「音の高さ」も並べます。ピアノロールは縦が音の高さ（左に鍵盤の音名）、横が時間。テクノのベースは、キックとぶつからないように拍の「裏」に置くのが定番で、これをオフビートベースといいます。下の PIANO ROLL で BASS トラックを使いましょう。',
+  terms:['pianoroll','bassline','octave','gate'],
+  steps:[
+   {id:'b7-1',focus:'roll',t:'PIANO ROLL の BASS で、どこかのマスをクリックしてノートを置き、上の ▶ PLAY で再生しよう。左の音名が、そのノートの高さです。',c:e=>seq(e)&&e.N[0].length>0},
+   {id:'b7-2',focus:'roll',ghostN:{t:0,notes:OFF.map(s=>({s,n:33}))},demo:D([{d:SAMPLE_BEAT.pat,n:[BASS_OFF,[],[]]}]),t:'点線のマス（A1 の高さで 3・7・11・15）にベースを置いて、四つ打ちのキックと一緒に再生しよう。キックの「ドン」の間に「ブン」が入ります。',
+    c:e=>seq(e)&&four(e)&&eq(starts(e.N[0]),OFF)&&new Set(e.N[0].map(n=>n.n)).size===1},
+   {id:'b7-3',focus:'roll',demo:D([{d:SAMPLE_BEAT.pat,n:[[{s:2,n:33,len:1},{s:6,n:45,len:1},{s:10,n:33,len:1},{s:14,n:45,len:1}],[],[]]}]),t:'ベースを4つ以上にして、高さを2種類以上にして再生しよう。同じ音名の1つ上（A1 → A2、12マス上）を混ぜると、「オクターブ」で跳ねるテクノらしいベースになります。',
+    c:e=>seq(e)&&e.N[0].length>=4&&new Set(e.N[0].map(n=>n.n)).size>=2},
+   {id:'b7-4',focus:'roll',t:'ノートの右端をドラッグして、長さ2マス以上のノートを作って再生しよう。長いノートは「ブーン」とのびて、ベースの印象がガラッと変わります。',c:e=>seq(e)&&e.N[0].some(n=>n.len>=2)},
+   {id:'b7-5',focus:'roll',demo:D([{d:SAMPLE_BEAT.pat,n:[BASS_EAR,[],[]]}]),t:'耳コピ：お手本を聴いて、同じベースラインを作って再生しよう（ヒント：置く場所はすべて裏。高さは「ラ・ラ・ド・ソ」＝ A1・A1・C2・G1）。',
+    c:e=>seq(e)&&e.N[0].length===4&&BASS_EAR.every(b=>e.N[0].some(n=>n.s===b.s&&n.n===b.n))},
+  ]},
+ {tag:'ACID',title:'アシッドライン',mods:['roll'],
+  intro:'「ビュワビュワ」とうねるアシッドラインは、テクノを代表する音。ACID トラックは強いクセ（レゾナンス）のフィルターを、ノートごとにパッと開いて閉じる仕組みです。CUTOFF でこもり具合、RESO でクセ、ENV MOD で開き具合、DECAY で閉じる速さを決め、ACCENT と SLIDE で表情をつけます。SOUND コース 03章のフィルターと同じ考え方です。',
+  terms:['acid','cutoff','resonance','envmod','slide'],
+  steps:[
+   {id:'b8-1',focus:'roll',demo:D([{d:SAMPLE_BEAT.pat,n:[[],ACID_PLAIN,[]]}],2,124,SAMPLE_BEAT.swing),t:'ACID トラックに切り替えて、ノートを8つ以上並べて再生しよう（同じ高さが多くても OK。A2 あたりがおすすめ）。',c:e=>seq(e)&&e.N[1].length>=8},
+   {id:'b8-2',focus:'roll',t:'再生したまま、ACID の CUTOFF ノブを大きく回そう。こもった音から明るい音へ、アシッドの「うねり」はここから生まれます。',c:e=>seq(e)&&e.acidSweep&&e.N[1].length>0},
+   {id:'b8-3',focus:'roll',t:'RESO（レゾナンス）を 70% 以上にして再生しよう。「ミョン」としたクセが強くなり、いかにもアシッドな音に。',c:e=>seq(e)&&e.acid.res>=.7&&e.N[1].length>0},
+   {id:'b8-4',focus:'roll',demo:D([{d:SAMPLE_BEAT.pat,n:[[],ACID_LINE.map(n=>({...n,sl:false})),[]]}],2,124,SAMPLE_BEAT.swing,ACID_P),t:'ノートをクリックして選び、下の ACCENT を2つ以上のノートにつけて再生しよう。アクセントのついた音だけ大きく、フィルターも大きく開きます。',
+    c:e=>seq(e)&&e.N[1].filter(n=>n.acc).length>=2},
+   {id:'b8-5',focus:'roll',demo:D([{d:SAMPLE_BEAT.pat,n:[[],ACID_LINE,[]]}],2,124,SAMPLE_BEAT.swing,ACID_P),t:'すぐ右どなりにノートがあるノートを選んで SLIDE をつけ、高さを変えて再生しよう。音が切れずに「ビューン」と次の高さへすべっていきます。',
+    c:e=>seq(e)&&e.N[1].some(n=>n.sl&&e.N[1].some(q=>q.s===n.s+n.len&&q.n!==n.n))},
+  ]},
+ {tag:'CHORD',title:'スケールとコード',mods:['roll'],
+  intro:'好きな高さを適当に並べると、音が濁って聞こえることがあります。曲の「キー（中心の音）」と「スケール（使う音の並び）」を決めれば外れません。テクノでは暗くてクールなマイナースケールが定番。CHORD トラックで3つの音を重ねた和音（コード）を鳴らし、こだま（ディレイ）で響かせると、ダブテクノ風になります。',
+  terms:['key','scale','chord','stab'],
+  steps:[
+   {id:'b9-1',focus:'roll',t:'KEY が A、MINOR になっているのを確かめて、SCALE LOCK を ON にしよう。緑のすじの行がスケールの音で、ななめ線の行には置けなくなります。左の音名のオレンジ線はキーの音（A）です。',c:e=>e.key.lock},
+   {id:'b9-2',focus:'roll',demo:D([{d:SAMPLE_BEAT.pat,n:[[],[],[57,60,64].map(n=>({s:0,n,len:4}))]}]),t:'CHORD トラックに切り替え、TRIAD を ON にして、1マス目の A3 をクリックしてコードを置き、再生しよう。1回のクリックで、スケールの音から3つ（ラ・ド・ミ）が重なります。',
+    c:e=>seq(e)&&groups(e.N[2]).some(g=>g.length>=3)},
+   {id:'b9-3',focus:'roll',ghostN:{t:2,notes:OFF.flatMap(s=>[57,60,64].map(n=>({s,n,len:2})))},demo:D([{d:SAMPLE_BEAT.pat,n:[[],[],CHORD_AM]}]),t:'コードを裏（3・7・11・15）に4つ置いて再生しよう。短く切ったコードを「スタブ」といい、こだまが裏から裏へ広がっていきます。',
+    c:e=>seq(e)&&eq(starts3(e.N[2]),OFF)},
+   {id:'b9-4',focus:'roll',demo:D([{d:SAMPLE_BEAT.pat,n:[[],[],CHORD_AM]},{d:SAMPLE_BEAT.pat,n:[[],[],CHORD_F]}],4),t:'コード進行：PATTERN A を COPY して B に PASTE し、B のコードを別の高さ（たとえば F3）に置きかえて、CHAIN を A → B（→ A → B）にして再生しよう。2小節ごとに景色が変わります。',
+    c:e=>seq(e)&&e.mode==='chain'&&e.chain.includes(0)&&e.chain.includes(1)&&low(e.notes[0][2])>0&&low(e.notes[1][2])>0&&low(e.notes[0][2])!==low(e.notes[1][2])},
+  ]},
+ {tag:'AUTOMATION',title:'オートメーション',mods:['roll'],
+  intro:'テクノの盛り上げは「抜き差し」と「じわじわ」。オートメーションは、つまみの動きを記録して自動で動かしてくれる機能です。PIANO ROLL の下の AUTOMATION レーンにバーを描くと、マスごとに値が変わります。描いた内容はパターンごとに保存されます。',
+  terms:['automation','build','sweep'],
+  steps:[
+   {id:'b10-1',focus:'roll',demo:D([{d:SAMPLE_BEAT.pat,n:[[],ACID_LINE,[]],au:{acid:RAMP(.1,.85)}}],2,124,SAMPLE_BEAT.swing,ACID_P),t:'AUTOMATION を ACID CUTOFF にして、左は低く・右へいくほど高くなるように描き、アシッドのある状態で再生しよう。1小節のなかで、だんだん音が開いていきます。',
+    c:e=>seq(e)&&e.N[1].length>0&&rising(e.auto[e.cur].acid)},
+   {id:'b10-2',focus:'roll',demo:D([{d:SAMPLE_BEAT.pat,n:[BASS_OFF,[],[]],au:{master:RAMP(.12,1)}}]),t:'今度は MASTER FILTER に切り替えて、最初は 40% 以下（こもる）、最後は 85% 以上（全開）になるように描いて再生しよう。曲全体がこもった所から開いていく、これが「ビルドアップ」です。',
+    c:e=>seq(e)&&rising(e.auto[e.cur].master)&&e.auto[e.cur].master[0]<=.4&&e.auto[e.cur].master[15]>=.85},
+   {id:'b10-3',focus:'roll',demo:D([{d:SAMPLE_BEAT.pat,n:[BASS_OFF,[],[]]},{d:SAMPLE_BEAT.pat,n:[BASS_OFF,[],[]]},{d:SAMPLE_BEAT.pat,n:[BASS_OFF,[],[]]},{d:FILL_B,n:[BASS_OFF,[],[]],au:{master:RAMP(.12,1)}}],4,124,SAMPLE_BEAT.swing),t:'PATTERN A の MASTER FILTER は OFF にして、PATTERN B にだけ上がっていく MASTER FILTER を描き、CHAIN を A → A → A → B にして再生しよう。4小節目だけ、こもってから開いて「戻ってくる」感じが出ます。',
+    c:e=>seq(e)&&e.mode==='chain'&&e.chain.includes(0)&&e.chain.includes(1)&&!e.auto[0].master&&rising(e.auto[1].master)},
+  ]},
+ {tag:'ARRANGE',title:'アレンジ — 抜き差し',mods:['song'],
+  intro:'曲は「パターンの並べ方」で決まります。キックとハイハットだけで始まるイントロ、キックを抜いて空気を変えるブレイク、そしてキックが戻ってくるドロップ。この「抜いて、戻す」気持ちよさがテクノの醍醐味です。パターンは A〜D の4つに増え、下の ARRANGE でブロックを並べて1曲にします。',
+  terms:['arrangement','intro','breakdown','drop'],
+  steps:[
+   {id:'b11-1',focus:'seq',demo:D([ARR_C]),t:'PATTERN C を選び、キックとハイハットだけ（クラップ・ベース・アシッド・コードなし）のイントロ用パターンを作ろう。',
+    c:e=>e.D[2][0].length>0&&(e.D[2][2].length>0||e.D[2][3].length>0)&&e.D[2][1].length===0&&e.notes[2].every(t=>t.length===0)},
+   {id:'b11-2',focus:'seq',demo:D([ARR_D]),t:'PATTERN D を選び、キックなしのブレイク用パターンを作ろう。コードやアシッドだけを鳴らすと、ふわっと宙に浮いたような感じになります（COPY / PASTE も使えます）。',
+    c:e=>e.D[3][0].length===0&&e.notes[3].some(t=>t.length>0)},
+   {id:'b11-3',focus:'song',demo:D([ARR_C,ARR_C,ARR_A,ARR_A,ARR_D,ARR_D,ARR_A,ARR_A],8,124,SAMPLE_BEAT.swing,ACID_P),t:'ARRANGE で「＋ ブロック追加」を使い、C → A → D → A のように、ブレイク（NO KICK）のあとにキックのあるパターンが戻る並びを作ろう。MODE を SONG にして再生します。',
+    c:e=>seq(e)&&e.mode==='song'&&e.songBars>=4&&brkThenKick(e)},
+   {id:'b11-4',focus:'song',t:'そのまま聴いて、ブレイクからキックが戻ってくる瞬間（ドロップ）まで再生しよう。ブロックの小節数を減らすと早くたどり着けます。',c:e=>e.type==='drop'},
+  ]},
+ {tag:'FINAL',title:'卒業制作 — 1曲つくる',mods:['song'],
+  intro:'最終章。これまでの道具をぜんぶ使って、32小節（BPM 124 で約1分）のテクノトラックをつくり、WAV で書き出しましょう。イントロで始めて、ベースやアシッドで引っぱり、ブレイクで抜いて、ドロップで戻る。4つの条件をそろえたら書き出しです。',
+  terms:['loop','normalize'],
+  steps:[
+   {id:'b12-1',focus:'song',t:'ARRANGE の合計を 32 小節以上にしよう（ブロックの BARS を 4 や 8 にすると早い）。',c:e=>e.songBars>=32},
+   {id:'b12-2',focus:'song',t:'SONG に並べたパターンのどこかで、BASS か ACID と、CHORD の両方を使おう。',c:e=>songNotes(e)},
+   {id:'b12-3',focus:'song',t:'SONG に、キックなしのブレイク（NO KICK）と、キックのあるブロックの両方を入れよう。',c:e=>songBrk(e)},
+   {id:'b12-4',focus:'song',t:'SONG に並べたパターンのどこかで、オートメーション（ACID CUTOFF か MASTER FILTER）を使おう。',c:e=>songAuto(e)},
+   {id:'b12-5',focus:'seq',t:'MODE を SONG にして ⇩ WAV で書き出そう。上の4つがそろっていれば卒業です。おつかれさまでした！',
+    c:e=>e.type==='wav'&&e.mode==='song'&&e.songBars>=32&&songNotes(e)&&songBrk(e)&&songAuto(e)},
+  ]},
 ];
