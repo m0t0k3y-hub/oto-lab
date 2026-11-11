@@ -201,4 +201,14 @@ export const BCH: Chapter[] = [
    {id:'b12-5',focus:'seq',t:'MODE を SONG にして ⇩ WAV で書き出そう。上の4つがそろっていれば卒業です。おつかれさまでした！',
     c:e=>e.type==='wav'&&e.mode==='song'&&e.songBars>=32&&songNotes(e)&&songBrk(e)&&songAuto(e)},
   ]},
+ {tag:'MY SOUND',title:'自分の音で鳴らす',mods:['seq','roll'],
+  intro:'発展編。トラック名の横の小さなボタン（909 や BUILT-IN）を押すと、そのトラックで鳴らす音を SOUND LIBRARY の音色に切り替えられます。SOUND コース 10章でつくったキックやハイハット、SOUND でつくったシンセを、ここで鳴らしましょう。まだつくっていなくても、お手本の音色が入っています。',
+  terms:['library','pitchdrop'],
+  steps:[
+   {id:'b13-1',focus:'seq',t:'KICK の横の「909」を押して、MY KICK（またはお手本 KICK）に切り替え、四つ打ちを再生しよう。',c:e=>seq(e)&&e.src[0]&&e.P[0].length>0},
+   {id:'b13-2',focus:'seq',t:'ほかのドラム（CLAP・C.HAT・O.HAT）も切り替えて、ドラムの2トラック以上を SOUND LIBRARY の音にして再生しよう。',c:e=>seq(e)&&e.src.slice(0,4).filter(Boolean).length>=2},
+   {id:'b13-3',focus:'roll',t:'PIANO ROLL の BASS か ACID の横のボタンで、SOUND の音色（お手本 SAW BASS など）に切り替え、ノートのある状態で再生しよう。ピアノロールの高さで鳴ります。',c:e=>seq(e)&&((e.src[4]&&e.N[0].length>0)||(e.src[5]&&e.N[1].length>0))},
+   {id:'b13-4',focus:'seq',t:'聞き比べ：切り替えたトラックを一度 BUILT-IN（内蔵の音）に戻して聴き、また SOUND LIBRARY の音に戻して再生しよう。',c:e=>seq(e)&&e.srcCmp&&e.src.some(Boolean)},
+   {id:'b13-5',focus:'seq',t:'SOUND LIBRARY の音を使ったまま ⇩ WAV で書き出そう。自分でつくった音で鳴る、あなただけのトラックの完成です。',c:e=>e.type==='wav'&&e.src.some((x,i)=>x&&e.used[i])},
+  ]},
 ];

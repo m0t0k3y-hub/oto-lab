@@ -66,6 +66,7 @@ export function makeRig(ac: BaseAudioContext, out: AudioNode): Rig {
   R.voice=(freq: number, p: PlayParams, when?: number): Voice=>{
     const t=Math.max(when??0,ac.currentTime+.005);
     const osc=ac.createOscillator(); osc.type=p.wave; osc.frequency.setValueAtTime(freq,t);
+    if(p.pdAmt>0){ osc.frequency.setValueAtTime(freq*Math.pow(2,p.pdAmt/12),t); osc.frequency.exponentialRampToValueAtTime(freq,t+Math.max(p.pdTime||.08,.005)); }
     const og=ac.createGain(); og.gain.value=p.oscLvl;
     const nz=ac.createBufferSource(); nz.buffer=R.noiseBuf; nz.loop=true;
     const ng=ac.createGain(); ng.gain.value=p.noise*.8;

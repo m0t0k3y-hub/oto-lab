@@ -381,3 +381,25 @@ body[data-course="beat"] #recipeBtn{display:none}
   .proll{grid-template-columns:36px minmax(0,1fr)}
   .acidrow{gap:6px;flex-wrap:wrap}
 }
+
+/* ============ SOUND LIBRARY と音源の切り替え ============ */
+.pdgrp{display:flex;gap:14px}
+.libsave{display:flex;gap:8px;margin:14px 0 6px}
+.libname{flex:1;font-family:var(--mono);font-size:13px;padding:7px 10px;border:1px solid var(--ink);border-radius:8px;background:var(--white);min-width:0}
+.libname.sm{font-size:12px;padding:4px 7px;border-color:var(--line)}
+.liblist{display:grid;gap:5px;margin-top:12px}
+.librow{display:grid;grid-template-columns:30px minmax(0,1fr) auto auto;gap:8px;align-items:center;background:var(--white);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.librow b{font-size:12.5px;font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.librow.pre{background:var(--panel)}
+.librow.cur{border-color:var(--orange);box-shadow:inset 3px 0 0 var(--orange)}
+.librow .lp{width:28px;height:28px;border-radius:50%;background:var(--ink);color:var(--white);font-size:10px}
+.librow span.lp{background:transparent}
+.libinfo{font-family:var(--mono);font-size:9.5px;color:var(--mute);letter-spacing:.06em}
+.libacts{display:flex;gap:4px}
+.srcchip{font-family:var(--mono);font-size:9px;letter-spacing:.04em;border:1px dashed var(--mute);border-radius:4px;padding:1px 5px;color:var(--mute);max-width:74px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-left:2px}
+.srcchip:hover{border-color:var(--ink);color:var(--ink)}
+.srcchip.my{border:1px solid var(--orange);color:var(--orange);font-weight:700}
+.srcchip.sublocked{display:none}
+.bgrid{grid-template-columns:auto minmax(0,1fr)}
+.bhead{min-width:118px}
+@media (max-width:760px){ .librow{grid-template-columns:28px minmax(0,1fr) auto} .libinfo{display:none} .bhead{min-width:0} .bgrid{grid-template-columns:1fr} }

@@ -11,11 +11,12 @@ import { makeRig, tremBase, type Rig, type Voice } from './audio/engine';
 import { toWav } from './audio/wav';
 import { BCH } from './data/beatChapters';
 import { createBeat, type BeatProj } from './beat/seq';
+import { libAll, libFind, newId, type LibItem } from './library';
 
 /* ================= PROGRESS ================= */
 const KEY='otolab-v1';
 interface Progress { done: Record<string, boolean>; ch: number; reach: number; learned: string[]; proj?: Project; backup?: Project;
-  course?: 'sound'|'beat'; bch?: number; breach?: number; bproj?: BeatProj }
+  course?: 'sound'|'beat'; bch?: number; breach?: number; bproj?: BeatProj; lib?: LibItem[] }
 let P: Progress={done:{},ch:0,reach:0,learned:[],course:'sound',bch:0,breach:0};
 try{const s=JSON.parse(localStorage.getItem(KEY)||'null'); if(s)P={...P,...s};}catch(e){}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(P));}catch(e){}};
@@ -50,6 +51,7 @@ function updateMix(){ const anySolo=tracks.some(t=>t.solo), now=ctx.currentTime;
   masterG.gain.setTargetAtTime(dbToGain(PROJ.master),now,.01); }
 const demoRig=makeRig(ctx,lim);
 const beat=createBeat({ctx,out:lim,emit:e=>emit(e),save:bp=>{ P.bproj=bp; save(); },toast:m=>toast(m),saved:P.bproj,
+  lib:id=>libFind(P.lib,id), pickSource:(cur,cb)=>openLib({pick:cb,cur}),
   reach:()=>P.breach||0,ghost:()=>{ try{ return beatGhost(); }catch(e){ return null; } },
   ghostN:()=>{ try{ if(!isBeat())return null; const c=curStep(); return c&&c.ghostN||null; }catch(e){ return null; } }});
 const dummyFilter=ctx.createBiquadFilter();
@@ -124,7 +126,10 @@ function knob(o: any): KnobEl {
 }
 const fHz=v=>v<1000?v.toFixed(0)+' Hz':(v/1000).toFixed(v<10000?2:1)+' kHz';
 const fSec=v=>v<1?(v*1000).toFixed(0)+' ms':v.toFixed(2)+' s';
-$('#k-osc').append(knob({key:'freq',label:'PITCH',term:'freq',min:55,max:1760,log:true,fmt:fHz,color:'var(--blue)'}));
+$('#k-osc').append(knob({key:'freq',label:'PITCH',term:'freq',min:30,max:1760,log:true,fmt:fHz,color:'var(--blue)'}),
+  h('div',{class:'pdgrp',id:'pdGrp'},
+    knob({key:'pdAmt',label:'DROP',term:'pitchdrop',min:0,max:48,fmt:v=>v<.5?'OFF':v.toFixed(0)+' st',color:'var(--blue)'}),
+    knob({key:'pdTime',label:'D.TIME',term:'pitchdrop',min:.005,max:.5,log:true,fmt:fSec,color:'var(--blue)'})));
 $('#k-amp').append(knob({key:'vol',label:'VOLUME',term:'db',min:-48,max:0,fmt:v=>v.toFixed(1)+' dB',color:'var(--grey)'}));
 $('#k-env').append(
   knob({key:'a',label:'ATTACK',term:'attack',min:.001,max:3,log:true,fmt:fSec,color:'var(--green)'}),
@@ -452,7 +457,8 @@ function loadProject(pj){
   selClip=null; updateMix(); $('#bpmV').textContent=PROJ.bpm; masterKnob.sync(); setNormBtn();
   selectTrack(0); saveProj();
 }
-const ACTIONS: Record<string, () => void> = { loadSample: () => loadSample() };
+const ACTIONS: Record<string, () => void> = { loadSample: () => loadSample(),
+  gotoBeat: () => { emit({type:'gobeat'}); setCourse('beat'); goCh(13); } };
 function loadSample(){ P.backup=projectJSON(); loadProject(SAMPLE); $('#restoreBtn').hidden=false; toast('お手本プロジェクトを読み込みました'); }
 
 /* ---- render / export ---- */
@@ -507,6 +513,7 @@ function renderTabs(){
   });
   $('#glossCnt').textContent=P.learned.length;
   $$('#courseSeg button').forEach(b=>b.classList.toggle('on',b.dataset.c===(P.course||'sound')));
+  $('#libBtn').hidden=!(isBeat()?(P.breach||0)>=13:P.reach>=10);
 }
 function termCard(k){
   const t=T[k];
@@ -554,8 +561,8 @@ function renderGuide(){
   );
   const nextI=chI()+1, next=chs()[nextI], open=next&&!next.soon;
   const endMsg=isBeat()
-    ?'BEAT コース全13章クリア、おめでとうございます！ 四つ打ちとハイハット、テンポとグルーヴ、パターンとフィル、ピアノロールでのベースとアシッドライン、スケールとコード、オートメーション、そしてアレンジと書き出しまで、テクノを1曲つくる流れはひと通り身につきました。次は SOUND コースで、キックやシンセの音そのものをつくる方法にも挑戦してみてください。'
-    :'全9章クリア、おめでとうございます！ 音の正体から波形・エンベロープ・フィルター・LFO・ノイズ・空間、そしてタイムライン・レイヤー・マスタリングまで、サウンドデザインの基礎はひと通り身につきました。あとは自由に、あなただけの起動音や効果音をつくってみてください。';
+    ?'BEAT コース全14章クリア、おめでとうございます！ 四つ打ちとハイハット、テンポとグルーヴ、パターンとフィル、ピアノロールでのベースとアシッドライン、スケールとコード、オートメーション、そしてアレンジと書き出しまで、テクノを1曲つくる流れはひと通り身につきました。SOUND コースでつくった自分の音でも、どんどん鳴らしてみてください。'
+    :'SOUND コース全11章クリア、おめでとうございます！ 音の正体から波形・エンベロープ・フィルター・LFO・ノイズ・空間、タイムライン・レイヤー・マスタリング、そしてドラムの音づくりまで、サウンドデザインの基礎はひと通り身につきました。つくった音色は BEAT コースのトラックでも鳴らせます。';
   const clr=h('div',{class:'clear'+(chDone(chI())?' show':'')},
     h('h4',{},open?'CHAPTER CLEAR!':'ALL CLEAR!'),
     h('p',{},open?(isBeat()?`「${c.title}」をマスター。次は「${next.title}」へ進もう。`:`「${c.title}」をマスター。次は「${next.title}」で新しいモジュールが解放されます。`):endMsg),
@@ -575,6 +582,8 @@ function applyLocks(){
   $('#m-space').classList.toggle('locked',r<6);
   $('#m-tl').classList.toggle('locked',r<7);
   $('#m-master').classList.toggle('locked',r<9);
+  $('#pdGrp').classList.toggle('sublocked',r<10);
+  $('#pdGrp').title=r<10?'CH.10 で解放':'';
   $('#mtabs [data-tab="tl"]').disabled=r<7;
   renderTL();
   $('#waveSub').classList.toggle('locked',r<1);
@@ -609,6 +618,42 @@ function renderGloss(){
   });
 }
 $('#glossBtn').onclick=()=>{ renderGloss(); $('#glossary').classList.add('show'); };
+
+/* ================= SOUND LIBRARY ================= */
+let libOpts: { pick?: (id: string|null)=>void; cur?: string|null } = {};
+function openLib(o: typeof libOpts = {}){ libOpts=o; renderLib(); $('#libDlg').classList.add('show'); }
+const closeLib=()=>$('#libDlg').classList.remove('show');
+$('#libBtn').onclick=()=>openLib();
+$('#libClose').onclick=closeLib;
+$('#libDlg').addEventListener('click',e=>{ if(e.target.id==='libDlg')closeLib(); });
+function previewLib(p: Recipe){ demo({...p,_dur:Math.min(Math.max(p.a+p.d+.05,.25),1.6)}); }
+function renderLib(){
+  const pickMode=!!libOpts.pick, body=$('#libBody'); body.innerHTML='';
+  P.lib=P.lib||[];
+  $('#libTitle').textContent=pickMode?'音源を選ぶ':'SOUND LIBRARY';
+  $('#libSub').textContent=pickMode?'このトラックで鳴らす音色を選びます。ノートのトラックでは、ピアノロールの高さで鳴ります。'
+    :'SOUND でつくった音色に名前を付けて保存し、BEAT コースのトラックで鳴らせます。「読み込む」で今のトラックに戻せます。';
+  if(!pickMode&&!isBeat()){
+    const inp=h('input',{class:'libname',value:'MY SOUND '+(P.lib.length+1),maxlength:'20'}) as HTMLInputElement;
+    body.append(h('div',{class:'libsave'},inp,h('button',{class:'tbtn play',onclick:()=>{
+      const name=(inp.value||'MY SOUND').trim().slice(0,20), p=pick(S);
+      P.lib.unshift({id:newId(),name,p}); save(); toast(`「${name}」をライブラリに保存しました`); emit({type:'libsave',name,p:{...p},count:P.lib.length}); renderLib();
+    }},'★ 今の音色を保存')));
+  }
+  const list=h('div',{class:'liblist'});
+  if(pickMode) list.append(h('div',{class:'librow'+(libOpts.cur==null?' cur':''),'data-name':'BUILT-IN'},h('span',{class:'lp'}),h('b',{},'BUILT-IN（内蔵の音）'),h('span',{}),
+    h('button',{class:'ib',onclick:()=>{ libOpts.pick(null); closeLib(); }},'選ぶ')));
+  libAll(P.lib).forEach(it=>{
+    const name=it.preset?h('b',{},it.name):h('input',{class:'libname sm',value:it.name,maxlength:'20',onchange:(e: any)=>{ it.name=(e.target.value||it.name).slice(0,20); save(); }});
+    const acts=pickMode?[h('button',{class:'ib',onclick:()=>{ libOpts.pick(it.id); closeLib(); }},'選ぶ')]
+      :[!isBeat()?h('button',{class:'ib',onclick:()=>{ const t=tracks[SEL]; Object.assign(t.p,DEF,it.p); t.rig.apply(t.p); selectTrack(SEL); saveProj(); toast(`「${it.name}」を読み込みました`); closeLib(); }},'読み込む'):null,
+        !it.preset?h('button',{class:'ib del',title:'削除',onclick:()=>{ P.lib=P.lib.filter(x=>x!==it); save(); renderLib(); beat.paint(); }},'×'):null];
+    list.append(h('div',{class:'librow'+(libOpts.cur===it.id?' cur':'')+(it.preset?' pre':''),'data-name':it.name},
+      h('button',{class:'lp',title:'試聴',onclick:()=>previewLib(it.p)},'▶'), name,
+      h('span',{class:'libinfo'},`${it.p.noise>.5&&it.p.oscLvl<.3?'NOISE':it.p.wave.toUpperCase()}${it.p.pdAmt>0?' / DROP':''}`), h('span',{class:'libacts'},...acts)));
+  });
+  body.append(list);
+}
 $('#glossClose').onclick=()=>$('#glossary').classList.remove('show');
 $('#glossary').addEventListener('click',e=>{ if(e.target.id==='glossary')$('#glossary').classList.remove('show'); });
 

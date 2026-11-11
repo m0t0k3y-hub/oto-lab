@@ -21,6 +21,7 @@
 | 07 | タイムライン | トラック・クリップ・BPM・クオンタイズ |
 | 08 | レイヤー | 音域の住み分け、パン、ミュート/ソロ |
 | 09 | マスター | ピーク、クリッピング、ノーマライズ、WAV 書き出し |
+| 10 | ドラム | ピッチの落下（DROP）でキック、ノイズでハイハットとクラップ、SOUND LIBRARY に保存 |
 
 ### BEAT コース
 
@@ -40,6 +41,7 @@
 | B10 | オートメーション | ACID CUTOFF / MASTER FILTER、ビルドアップ |
 | B11 | アレンジ | パターン A〜D、イントロ、ブレイク、ドロップ、SONG モード |
 | B12 | 卒業制作 | 32 小節のテクノトラックを WAV で書き出す |
+| B13 | MY SOUND | トラックの音源を SOUND LIBRARY の音色に切り替える（SOUND でつくった音で鳴らす） |
 
 音はすべて Web Audio API で合成しています（ドラム：`audio/drums.ts`、ベース・アシッド・コード：`audio/synth.ts`）。
 
@@ -73,6 +75,7 @@ src/
   audio/synth.ts       BEAT コースのベース・アシッド（303 風）・コード音源
   beat/engine.ts       BEAT コースの再生エンジン（ライブ再生・お手本・書き出しで共通）
   beat/seq.ts          BEAT コースの UI（シーケンサー・ピアノロール・オートメーション・アレンジ）
+  library.ts           SOUND LIBRARY（保存した音色とお手本プリセット）
   data/chapters.ts     SOUND コースの章とステップ（クリア条件）
   data/beatChapters.ts BEAT コースの章とステップ、お手本ループ
   data/terms.ts        用語集
