@@ -15,7 +15,7 @@
 <header>
   <div class="logo"><span class="dots"><i style="background:var(--orange)"></i><i style="background:var(--blue)"></i><i style="background:var(--green)"></i><i style="background:var(--ink)"></i></span>OTO/LAB</div>
   <span class="stage">BETA</span>
-  <div class="course" id="courseSeg"><button data-c="sound">SOUND</button><button data-c="beat">BEAT</button></div>
+  <div class="course" id="courseSeg"><button data-c="sound">SOUND</button><button data-c="beat">BEAT</button><button data-c="mix">MIX</button></div>
   <nav class="tabs" id="tabs"></nav>
   <button class="hbtn" id="libBtn" title="つくった音色の保存と読み込み" hidden>LIBRARY</button>
   <button class="hbtn" id="recipeBtn" title="今の音の設定をJSONでコピー">RECIPE ⧉</button>
@@ -36,6 +36,15 @@
     <div class="mod" id="m-song">
       <h3><span class="sq" style="background:var(--blue)"></span><span data-term="arrangement">ARRANGE</span><span class="jp">曲に並べる</span><span class="id">B</span></h3>
       <div class="lockmsg"><span class="lk">✕</span>B11 で解放</div>
+    </div>
+  </section>
+
+  <section class="rack mix-rack" id="mixRack">
+    <div class="mod" id="m-mix">
+      <h3><span class="sq" style="background:var(--yellow)"></span><span data-term="mixer">MIXER</span><span class="jp">音を混ぜて整える</span><span class="id">M</span></h3>
+    </div>
+    <div class="mod" id="m-spec">
+      <h3><span class="sq" style="background:var(--ink)"></span><span data-term="eq">SPECTRUM</span><span class="jp">帯域を見る ／ マスター</span><span class="id">M</span></h3>
     </div>
   </section>
 
@@ -188,8 +197,9 @@
   <div class="courses">
     <button class="cpick" id="goBeat"><b>BEAT</b><span>シーケンサーでテクノのビートを組む</span><small>DAW がはじめての人はこちら</small></button>
     <button class="cpick" id="go"><b>SOUND</b><span>シンセサイザーで音そのものをつくる</span><small>効果音・起動音づくり</small></button>
+    <button class="cpick wide" id="goMix"><b>MIX</b><span>音量・パン・EQ・サイドチェインで曲を仕上げる</span><small>BEAT のあとにおすすめ</small></button>
   </div>
-  <div class="gonote">▶ ボタンを押すと音が出ます。コースはあとから上の SOUND / BEAT で切り替えられます。</div>
+  <div class="gonote">▶ ボタンを押すと音が出ます。コースはあとから上の SOUND / BEAT / MIX で切り替えられます。</div>
 </div></div>
 
 <!-- スマホ（縦持ち）用：現在のステップ表示と下部タブ -->
@@ -199,6 +209,7 @@
   <button data-tab="synth" class="snd"><i style="background:var(--blue)"></i>シンセ</button>
   <button data-tab="tl" class="snd"><i style="background:var(--yellow)"></i>タイムライン</button>
   <button data-tab="seq" class="bt"><i style="background:var(--orange)"></i>シーケンサー</button>
+  <button data-tab="mix" class="mx"><i style="background:var(--yellow)"></i>ミキサー</button>
 </nav>
 <script type="module" src="/src/main.ts"></script>
 </body>
