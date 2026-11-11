@@ -3,8 +3,16 @@ import { P16 } from './beatChapters';
 
 /* ================= MIX コース（ミックスで仕上げる） =================
    ストリップ番号は BEAT と同じ：0 KICK / 1 CLAP / 2 C.HAT / 3 O.HAT / 4 BASS / 5 ACID / 6 CHORD */
-export interface Strip { vol: number; pan: number; hpf: number; low: number; mid: number; high: number; sc: number; mute: boolean; solo: boolean }
-export const flatStrip = (vol = 0): Strip => ({ vol, pan: 0, hpf: 20, low: 0, mid: 0, high: 0, sc: 0, mute: false, solo: false });
+export interface Strip {
+  vol: number; pan: number; hpf: number; low: number; mid: number; high: number; sc: number; mute: boolean; solo: boolean;
+  /** コンプレッサー（cRat = 1 で効かない） */ cThr: number; cRat: number; cAtk: number; cRel: number; cMk: number;
+  /** センド（共有リバーブ・ディレイへ送る量） */ rev: number; dly: number;
+}
+export const flatStrip = (vol = 0): Strip => ({ vol, pan: 0, hpf: 20, low: 0, mid: 0, high: 0, sc: 0, mute: false, solo: false,
+  cThr: 0, cRat: 1, cAtk: .01, cRel: .15, cMk: 0, rev: 0, dly: 0 });
+/** マスター：バスコンプ（bRat = 1 で効かない）、リミッター、リターン */
+export interface Master { bThr: number; bRat: number; limOn: boolean; ceil: number; drive: number; revRet: number; revHpf: number; dlyRet: number }
+export const DEF_MASTER: Master = { bThr: -12, bRat: 1, limOn: false, ceil: -1, drive: 0, revRet: .8, revHpf: 20, dlyRet: .7 };
 
 /** わざと崩したミックス：ベースが大きすぎてキックが埋もれ、全部が真ん中、コードとハットに不要な低音、マスターは音割れ */
 export const BAD_STRIPS: Strip[] = [0, 2, 3, 2, 5, 2, 3].map(v => flatStrip(v));
@@ -29,6 +37,8 @@ const soloOnly = (e: any, i: number) => e.strips.every((s: Strip, k: number) => 
 const noSolo = (e: any) => e.strips.every((s: Strip) => !s.solo);
 const center = (e: any, i: number) => Math.abs(S(e, i).pan) < .1;
 const sounding = (e: any) => e.peak > -40;
+const final3 = (e: any) => center(e, 0) && center(e, 4) && S(e, 2).hpf >= 300 && S(e, 3).hpf >= 300 && S(e, 6).hpf >= 150;
+const final4 = (e: any) => S(e, 4).sc >= .3 && e.strips.some((s: Strip) => s.cRat >= 2) && e.strips.some((s: Strip) => s.rev > 0 || s.dly > 0);
 
 export const MCH: Chapter[] = [
  {tag:'MIXER',title:'MIX ってなに？',mods:['mix'],
@@ -79,8 +89,43 @@ export const MCH: Chapter[] = [
    {id:'m4-4',focus:'mix',t:'第1段階のまとめ：PEAK −1 dB 以下・KICK と BASS は真ん中・CHORD の LOW CUT 200 Hz 以上・BASS の SC 50% 以上、をすべて満たして再生しよう。最初の崩れたミックスと A/B で聞き比べてみて。',
     c:e=>mix(e)&&noSolo(e)&&sounding(e)&&e.peak<=-1&&center(e,0)&&center(e,4)&&S(e,6).hpf>=200&&S(e,4).sc>=.5},
   ]},
- {soon:2,tag:'COMP',title:'コンプレッサー',mods:[],intro:'',terms:[],steps:[]},
- {soon:2,tag:'SEND',title:'センドとリターン',mods:[],intro:'',terms:[],steps:[]},
- {soon:2,tag:'MASTER',title:'マスター',mods:[],intro:'',terms:[],steps:[]},
- {soon:2,tag:'FINAL',title:'卒業課題',mods:[],intro:'',terms:[],steps:[]},
+ {tag:'COMP',title:'コンプレッサー — 粒をそろえる',mods:['det'],
+  intro:'コンプレッサーは「大きすぎる所だけを自動で小さくする」道具です。THRESHOLD（しきい値）を超えた分を、RATIO（比率）の割合で縮めます。どれだけ縮めたかは GR（ゲインリダクション）メーターでわかります。縮めて小さくなった分は MAKEUP で戻します。トラックを選ぶと、下の STRIP DETAIL で操作できます。',
+  terms:['compressor','threshold','ratio','gainreduction','makeup'],
+  steps:[
+   {id:'m5-1',focus:'det',t:'MIXER で CLAP の名前をクリックして選び、STRIP DETAIL の COMP で THRESH を下げて再生しよう。GR メーターが −3 dB 以上動けば、コンプが効いています。',c:e=>mix(e)&&e.gr[1]<=-3},
+   {id:'m5-2',focus:'det',t:'CLAP の RATIO を 4:1 以上にして、GR が −3 〜 −12 dB くらいに収まるように THRESH を調整して再生しよう。クラップの強さのばらつきがそろいます。',c:e=>mix(e)&&S(e,1).cRat>=4&&e.gr[1]<=-3&&e.gr[1]>=-12},
+   {id:'m5-3',focus:'det',t:'CLAP の ATTACK を 20 ms 以上にして再生しよう。コンプが効き始めるまでの時間を遅らせると、「パシッ」という頭の部分が残って、メリハリが出ます。',c:e=>mix(e)&&S(e,1).cAtk>=.02&&e.gr[1]<=-2},
+   {id:'m5-4',focus:'det',t:'CLAP の MAKEUP を +2 dB 以上にして、縮んで小さくなった分を戻して再生しよう。',c:e=>mix(e)&&S(e,1).cMk>=2&&e.gr[1]<=-2},
+   {id:'m5-5',focus:'det',t:'BASS を選んで、RATIO 3:1 以上・GR −2 dB 以上になるようにコンプをかけて再生しよう。ベースの音量が安定して、曲の土台がどっしりします。',c:e=>mix(e)&&S(e,4).cRat>=3&&e.gr[4]<=-2},
+  ]},
+ {tag:'SEND',title:'センドとリターン — 奥行きをつくる',mods:['det','spec'],
+  intro:'リバーブやディレイを、トラックごとに別々に用意するのではなく、1つの共有の響き（リターン）に、各トラックから必要な量だけ「送る（センド）」のがミックスの定番です。たくさん送った音は奥に、送らない音は手前に聞こえます。ただし、キックやベースのような低い音に響きを足すと、にごるので送りません。',
+  terms:['send','returnbus','reverb','delay'],
+  steps:[
+   {id:'m6-1',focus:'det',t:'CHORD を選び、STRIP DETAIL の REV（リバーブへのセンド）を 30% 以上にして再生しよう。コードがすっと奥に下がり、空間が広がります。',c:e=>mix(e)&&S(e,6).rev>=.3},
+   {id:'m6-2',focus:'det',t:'ACID を選び、DLY（ディレイへのセンド）を 25% 以上にして再生しよう。アシッドのこだまが、裏のリズムで追いかけてきます。',c:e=>mix(e)&&S(e,5).dly>=.25},
+   {id:'m6-3',focus:'spec',t:'KICK と BASS の REV は 0% のまま、MASTER の RETURN にある REV LOW CUT を 300 Hz 以上にして再生しよう。響きから低音を抜くと、にごらずに広がりだけが残ります。',c:e=>mix(e)&&S(e,0).rev===0&&S(e,4).rev===0&&e.master.revHpf>=300&&S(e,6).rev>0},
+   {id:'m6-4',focus:'det',t:'奥行きの差をつけよう：CLAP の REV を 10 〜 25%（少しだけ）、CHORD の REV はそれより多くして再生しよう。手前のクラップと、奥のコード。前後の立体感が出ます。',c:e=>mix(e)&&S(e,1).rev>=.1&&S(e,1).rev<=.25&&S(e,6).rev>S(e,1).rev},
+  ]},
+ {tag:'MASTER',title:'マスター — まとめて仕上げる',mods:['spec'],
+  intro:'最後に、全部が混ざった音（マスター）を仕上げます。BUS COMP で全体を軽く縮めると、バラバラだった音が1つにまとまります（グルー）。LIMITER は「天井（CEILING）より上には絶対に出さない」強いコンプで、音割れを防ぎながら DRIVE で全体の音量を押し上げます。聴いたときの大きさは LUFS（ラウドネス）で表します。',
+  terms:['buscomp','limiter','ceiling','loudness'],
+  steps:[
+   {id:'m7-1',focus:'spec',t:'BUS COMP の RATIO を 2:1 前後（1.5 以上）にして、BUS GR が −0.5 〜 −5 dB くらい動くように THRESH を調整して再生しよう。全体がぎゅっとまとまります。',c:e=>mix(e)&&e.master.bRat>=1.5&&e.busGr<=-.5&&e.busGr>=-5},
+   {id:'m7-2',focus:'spec',t:'LIMITER を ON にして、CEILING を −1 dB にして再生しよう。どんなに大きくしても、PEAK は −1 dB 付近で止まります。',c:e=>mix(e)&&e.master.limOn&&e.master.ceil<=-1&&e.peak<=-.7&&e.peak>-30},
+   {id:'m7-3',focus:'spec',t:'DRIVE を上げて、LUFS を −11 〜 −7 にして再生しよう。クラブで鳴らすテクノくらいの音圧です。LIM GR が大きくなりすぎると、音がつぶれて平らになるので注意。',c:e=>mix(e)&&e.master.limOn&&e.lufs>=-11&&e.lufs<=-7},
+   {id:'m7-4',focus:'spec',t:'今度は DRIVE を下げて、LUFS を −15 〜 −13 にして再生しよう。音楽配信サービスは −14 LUFS くらいに音量をそろえて再生するので、それより大きくしても、配信ではそのぶん下げられます。',c:e=>mix(e)&&e.lufs>=-15&&e.lufs<=-13},
+   {id:'m7-5',focus:'spec',t:'⇩ WAV を押して書き出そう。書き出したファイル全体の PEAK と LUFS が表示されます。',c:e=>e.type==='wav'},
+  ]},
+ {tag:'FINAL',title:'卒業課題 — 崩れたミックスを直す',mods:['mix','det','spec'],
+  intro:'MIX コースの総仕上げ。素材を「お手本（崩れたミックス）」にして、これまでの道具をぜんぶ使ってミックスを直し、WAV で書き出しましょう。下の4つの条件がそろった状態で書き出せば卒業です。そのあとは「自分の BEAT の曲」に切り替えて、あなたの曲も仕上げてみてください。',
+  terms:['mixer'],
+  steps:[
+   {id:'m8-1',focus:'spec',t:'音割れなし：書き出した WAV の PEAK を −0.5 dB 以下にしよう（LIMITER を使うと確実）。',c:e=>e.type==='wav'&&e.src==='demo'&&e.wavPeak<=-.5},
+   {id:'m8-2',focus:'spec',t:'音圧：書き出した WAV の LUFS を −12 〜 −8 にしよう。',c:e=>e.type==='wav'&&e.src==='demo'&&e.wavLufs>=-12&&e.wavLufs<=-8},
+   {id:'m8-3',focus:'mix',t:'住み分け：KICK と BASS は真ん中、C.HAT と O.HAT の LOW CUT は 300 Hz 以上、CHORD の LOW CUT は 150 Hz 以上にしよう。',c:e=>e.src==='demo'&&final3(e)},
+   {id:'m8-4',focus:'det',t:'動きと空間：BASS の SC を 30% 以上、どれかのトラックにコンプ（RATIO 2:1 以上）、どれかのトラックに REV か DLY のセンドを使おう。',c:e=>e.src==='demo'&&final4(e)},
+   {id:'m8-5',focus:'spec',t:'4つの条件をすべて満たした状態で ⇩ WAV を書き出そう。おめでとう、これで MIX コース卒業です！',c:e=>e.type==='wav'&&e.src==='demo'&&e.wavPeak<=-.5&&e.wavLufs>=-12&&e.wavLufs<=-8&&final3(e)&&final4(e)},
+  ]},
 ];
