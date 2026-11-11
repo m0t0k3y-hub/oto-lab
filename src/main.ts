@@ -539,7 +539,7 @@ function setMTab(t: string){
   document.body.dataset.mtab=t; hideTip();
   $$('#mtabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));
   const cur=curStep(), f=cur&&cur.focus;
-  const m=f&&((t==='synth'&&SYNTH_FOCUS.includes(f))||(t==='tl'&&(f==='tl'||f==='master'||f==='pad'))||(t==='seq'&&(f==='seq'||f==='roll'||f==='song'))||(t==='mix'&&(f==='mix'||f==='spec')))?$('#m-'+f):null;
+  const m=f&&((t==='synth'&&SYNTH_FOCUS.includes(f))||(t==='tl'&&(f==='tl'||f==='master'||f==='pad'))||(t==='seq'&&(f==='seq'||f==='roll'||f==='song'))||(t==='mix'&&(f==='mix'||f==='spec'||f==='det')))?$('#m-'+f):null;
   // 非表示中に描いたグラフは幅0になるので、表示してから描き直す
   requestAnimationFrame(()=>{ redrawAll(); if(m)m.scrollIntoView({block:'center'}); else scrollTo(0,0); });
 }
@@ -569,12 +569,12 @@ function renderGuide(){
   );
   const nextI=chI()+1, next=chs()[nextI], open=next&&!next.soon;
   const endMsg=isMix()
-    ?'MIX コース第1段階クリア、おめでとうございます！ バランス・パン・EQ・サイドチェインで、崩れていたミックスが聴きやすく、テクノらしくなりました。第2段階（コンプレッサー・センドとリターン・マスター・卒業課題）は近日追加予定。「自分の BEAT の曲」に切り替えて、自分の曲もミックスしてみてください。'
+    ?'MIX コース全9章クリア、おめでとうございます！ バランス・パン・EQ・サイドチェイン・コンプレッサー・センドとリターン、そしてマスターの仕上げまで、ミックスの基本はひと通り身につきました。「自分の BEAT の曲」に切り替えて、あなたの曲も仕上げてみてください。SOUND でつくった音、BEAT で組んだ曲、MIX で整えた仕上がり。これで1曲を最初から最後までつくれます。'
     :isBeat()
     ?'BEAT コース全14章クリア、おめでとうございます！ 四つ打ちとハイハット、テンポとグルーヴ、パターンとフィル、ピアノロールでのベースとアシッドライン、スケールとコード、オートメーション、そしてアレンジと書き出しまで、テクノを1曲つくる流れはひと通り身につきました。SOUND コースでつくった自分の音でも、どんどん鳴らしてみてください。'
     :'SOUND コース全11章クリア、おめでとうございます！ 音の正体から波形・エンベロープ・フィルター・LFO・ノイズ・空間、タイムライン・レイヤー・マスタリング、そしてドラムの音づくりまで、サウンドデザインの基礎はひと通り身につきました。つくった音色は BEAT コースのトラックでも鳴らせます。';
   const clr=h('div',{class:'clear'+(chDone(chI())?' show':'')},
-    h('h4',{},open?'CHAPTER CLEAR!':isMix()?'STAGE 1 CLEAR!':'ALL CLEAR!'),
+    h('h4',{},open?'CHAPTER CLEAR!':'ALL CLEAR!'),
     h('p',{},open?(!isSound()?`「${c.title}」をマスター。次は「${next.title}」へ進もう。`:`「${c.title}」をマスター。次は「${next.title}」で新しいモジュールが解放されます。`):endMsg),
     open?h('button',{class:'next',onclick:()=>goCh(nextI)},'NEXT → CH.'+chLabel(nextI)):(isBeat()?h('button',{class:'next',onclick:()=>setCourse('sound')},'SOUND コースへ →'):null));
   g.append(clr);

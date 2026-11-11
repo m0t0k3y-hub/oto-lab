@@ -449,3 +449,24 @@ body:not([data-course="sound"]) #recipeBtn{display:none}
 .mix-rack,#m-mix,#m-spec{min-width:0}
 #m-mix{overflow:hidden}
 .mxstrips{max-width:100%;overscroll-behavior-x:contain}
+
+/* ============ MIX 第2段階：コンプ／センド／マスター ============ */
+.mxflags{display:flex;gap:2px;min-height:13px;flex-wrap:wrap;justify-content:center}
+.mxflags .fl{font-size:8px;font-weight:700;letter-spacing:.04em;padding:1px 3px;border-radius:3px;color:#fff}
+.fl.c{background:var(--ink)}.fl.r{background:var(--blue)}.fl.d{background:var(--green)}
+.dname{font-weight:700;font-size:13px;letter-spacing:.06em}
+.dgrid{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,1.2fr);gap:10px}
+.dsec{background:var(--white);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.dhead{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.krow.dk{display:flex;gap:16px;flex-wrap:wrap;justify-content:flex-start}
+.grrow{display:flex;align-items:center;gap:8px;margin-top:8px}
+.grbar{flex:1;height:8px;background:var(--panel2);border-radius:4px;overflow:hidden;position:relative;transform:scaleX(-1)}
+.grbar i{position:absolute;left:0;top:0;bottom:0;background:var(--orange);display:block;width:0}
+.mxlrow{display:flex;align-items:baseline;gap:10px;margin-top:12px;flex-wrap:wrap}
+.mxlufs{font-size:22px;font-weight:700;min-width:70px}
+.mxrack{display:grid;grid-template-columns:repeat(3,minmax(0,auto));gap:10px;margin-top:12px;justify-content:start}
+.msec{display:flex;align-items:center;gap:12px;background:var(--white);border:1px solid var(--line);border-radius:10px;padding:8px 12px;flex-wrap:wrap}
+.mxexp{display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap}
+.bstat.over{color:#e5382b}
+@media (max-width:1180px){ .mxrack{grid-template-columns:1fr} }
+@media (max-width:760px){ .dgrid{grid-template-columns:1fr} .krow.dk{gap:10px} }
