@@ -12,20 +12,26 @@ import { toWav } from './audio/wav';
 import { BCH } from './data/beatChapters';
 import { createBeat, type BeatProj } from './beat/seq';
 import { libAll, libFind, newId, type LibItem } from './library';
+import { MCH } from './data/mixChapters';
+import { createMix, type MixProj } from './mix/mixer';
+import { beatMaterial } from './beat/seq';
 
 /* ================= PROGRESS ================= */
 const KEY='otolab-v1';
 interface Progress { done: Record<string, boolean>; ch: number; reach: number; learned: string[]; proj?: Project; backup?: Project;
-  course?: 'sound'|'beat'; bch?: number; breach?: number; bproj?: BeatProj; lib?: LibItem[] }
-let P: Progress={done:{},ch:0,reach:0,learned:[],course:'sound',bch:0,breach:0};
+  course?: Course; bch?: number; breach?: number; bproj?: BeatProj; lib?: LibItem[]; mch?: number; mreach?: number; mproj?: MixProj }
+type Course = 'sound'|'beat'|'mix';
+let P: Progress={done:{},ch:0,reach:0,learned:[],course:'sound',bch:0,breach:0,mch:0,mreach:0};
 try{const s=JSON.parse(localStorage.getItem(KEY)||'null'); if(s)P={...P,...s};}catch(e){}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(P));}catch(e){}};
 /* ---- コース（SOUND = 00〜09章 / BEAT = B00〜） ---- */
 const isBeat=()=>P.course==='beat';
-const chs=()=>isBeat()?BCH:CH;
-const chI=()=>isBeat()?(P.bch||0):P.ch;
-const reachI=()=>isBeat()?(P.breach||0):P.reach;
-const chLabel=i=>(isBeat()?'B':'')+String(i).padStart(2,'0');
+const isMix=()=>P.course==='mix';
+const isSound=()=>!isBeat()&&!isMix();
+const chs=()=>isBeat()?BCH:isMix()?MCH:CH;
+const chI=()=>isBeat()?(P.bch||0):isMix()?(P.mch||0):P.ch;
+const reachI=()=>isBeat()?(P.breach||0):isMix()?(P.mreach||0):P.reach;
+const chLabel=i=>(isBeat()?'B':isMix()?'M':'')+String(i).padStart(2,'0');
 const chDone=i=>{ const st=chs()[i].steps; return !!st&&st.length>0&&st.every(s=>P.done[s.id]); };
 
 /* ================= APP AUDIO ================= */
@@ -54,6 +60,8 @@ const beat=createBeat({ctx,out:lim,emit:e=>emit(e),save:bp=>{ P.bproj=bp; save()
   lib:id=>libFind(P.lib,id), pickSource:(cur,cb)=>openLib({pick:cb,cur}),
   reach:()=>P.breach||0,ghost:()=>{ try{ return beatGhost(); }catch(e){ return null; } },
   ghostN:()=>{ try{ if(!isBeat())return null; const c=curStep(); return c&&c.ghostN||null; }catch(e){ return null; } }});
+const mixer=createMix({ctx,out:lim,emit:e=>emit(e),save:m=>{ P.mproj=m; save(); },toast:m=>toast(m),saved:P.mproj,
+  reach:()=>P.mreach||0, ownSong:()=>beatMaterial(P.bproj,id=>libFind(P.lib,id))});
 const dummyFilter=ctx.createBiquadFilter();
 
 const voices=new Map();
@@ -189,13 +197,13 @@ const keyEls: Record<number, any>={};
   });
 })();
 const noteFreq=i=>261.63*Math.pow(2,i/12);
-function keyOn(i){ if(isBeat()||P.reach<1)return; keyEls[i].classList.add('down'); if(selClip&&P.reach>=7){ selClip.c.note=60+i; renderTL(); saveProj(); } noteOn('k'+i,noteFreq(i),S,true,'key'); }
+function keyOn(i){ if(!isSound()||P.reach<1)return; keyEls[i].classList.add('down'); if(selClip&&P.reach>=7){ selClip.c.note=60+i; renderTL(); saveProj(); } noteOn('k'+i,noteFreq(i),S,true,'key'); }
 function keyOff(i){ keyEls[i]?.classList.remove('down'); noteOff('k'+i); }
 addEventListener('keydown',e=>{
   if(e.metaKey||e.ctrlKey||e.altKey)return;
   if($('#start').classList.contains('show'))return;
   // Space は押しっぱなしのキーリピート中もスクロールを止める（PLAY は最初の1回だけ）
-  if(e.code==='Space'){ e.preventDefault(); if(!e.repeat){ if(isBeat())beat.toggle(); else padDown(); } return; }
+  if(e.code==='Space'){ e.preventDefault(); if(!e.repeat){ if(isBeat())beat.toggle(); else if(isMix())mixer.toggle(); else padDown(); } return; }
   if(e.repeat)return;
   if((e.key==='Delete'||e.key==='Backspace')&&selClip){ e.preventDefault(); deleteSel(); return; }
   if(e.key==='Escape'&&selClip){ selClip=null; renderTL(); return; }
@@ -275,7 +283,7 @@ function loop(now=0){
   // スマホでは描画を 30fps に間引いて CPU を音に回す
   if(LOW_POWER&&now-lastFrame<32){ requestAnimationFrame(loop); return; }
   lastFrame=now;
-  if(isBeat()){ requestAnimationFrame(loop); return; }
+  if(!isSound()){ requestAnimationFrame(loop); return; }
   const [c,w,hh]=fit($('#scope'));
   c.fillStyle='#161616'; c.fillRect(0,0,w,hh);
   c.strokeStyle='#262626'; c.lineWidth=1;
@@ -513,7 +521,7 @@ function renderTabs(){
   });
   $('#glossCnt').textContent=P.learned.length;
   $$('#courseSeg button').forEach(b=>b.classList.toggle('on',b.dataset.c===(P.course||'sound')));
-  $('#libBtn').hidden=!(isBeat()?(P.breach||0)>=13:P.reach>=10);
+  $('#libBtn').hidden=isMix()||!(isBeat()?(P.breach||0)>=13:P.reach>=10);
 }
 function termCard(k){
   const t=T[k];
@@ -531,7 +539,7 @@ function setMTab(t: string){
   document.body.dataset.mtab=t; hideTip();
   $$('#mtabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));
   const cur=curStep(), f=cur&&cur.focus;
-  const m=f&&((t==='synth'&&SYNTH_FOCUS.includes(f))||(t==='tl'&&(f==='tl'||f==='master'||f==='pad'))||(t==='seq'&&(f==='seq'||f==='roll'||f==='song')))?$('#m-'+f):null;
+  const m=f&&((t==='synth'&&SYNTH_FOCUS.includes(f))||(t==='tl'&&(f==='tl'||f==='master'||f==='pad'))||(t==='seq'&&(f==='seq'||f==='roll'||f==='song'))||(t==='mix'&&(f==='mix'||f==='spec')))?$('#m-'+f):null;
   // 非表示中に描いたグラフは幅0になるので、表示してから描き直す
   requestAnimationFrame(()=>{ redrawAll(); if(m)m.scrollIntoView({block:'center'}); else scrollTo(0,0); });
 }
@@ -541,7 +549,7 @@ function renderStrip(){
   st.append(...[h('span',{class:'no'},cur?`STEP ${idx}/${c.steps.length}`:'CLEAR!'),
     h('span',{class:'txt'},cur?cur.t:'この章はクリア！ ガイドから次の章へ進もう'),
     cur&&cur.demo?h('button',{class:'pl',onclick:()=>demo(cur.demo)},'▶'):null,
-    isBeat()?h('button',{class:'tr',title:'シーケンサーの再生／停止',onclick:()=>beat.toggle()},'▶■'):null,
+    !isSound()?h('button',{class:'tr',title:'再生／停止',onclick:()=>isBeat()?beat.toggle():mixer.toggle()},'▶■'):null,
     h('button',{onclick:()=>setMTab('guide')},'ガイド')].filter(Boolean));
 }
 function renderGuide(){
@@ -560,12 +568,14 @@ function renderGuide(){
       h('div',{},h('div',{class:'txt'},s.t), s.demo?h('button',{class:'demo',onclick:()=>demo(s.demo)},'▶ お手本を聞く'):null, s.act?h('button',{class:'demo',onclick:ACTIONS[s.act.action]},s.act.label):null))))
   );
   const nextI=chI()+1, next=chs()[nextI], open=next&&!next.soon;
-  const endMsg=isBeat()
+  const endMsg=isMix()
+    ?'MIX コース第1段階クリア、おめでとうございます！ バランス・パン・EQ・サイドチェインで、崩れていたミックスが聴きやすく、テクノらしくなりました。第2段階（コンプレッサー・センドとリターン・マスター・卒業課題）は近日追加予定。「自分の BEAT の曲」に切り替えて、自分の曲もミックスしてみてください。'
+    :isBeat()
     ?'BEAT コース全14章クリア、おめでとうございます！ 四つ打ちとハイハット、テンポとグルーヴ、パターンとフィル、ピアノロールでのベースとアシッドライン、スケールとコード、オートメーション、そしてアレンジと書き出しまで、テクノを1曲つくる流れはひと通り身につきました。SOUND コースでつくった自分の音でも、どんどん鳴らしてみてください。'
     :'SOUND コース全11章クリア、おめでとうございます！ 音の正体から波形・エンベロープ・フィルター・LFO・ノイズ・空間、タイムライン・レイヤー・マスタリング、そしてドラムの音づくりまで、サウンドデザインの基礎はひと通り身につきました。つくった音色は BEAT コースのトラックでも鳴らせます。';
   const clr=h('div',{class:'clear'+(chDone(chI())?' show':'')},
-    h('h4',{},open?'CHAPTER CLEAR!':'ALL CLEAR!'),
-    h('p',{},open?(isBeat()?`「${c.title}」をマスター。次は「${next.title}」へ進もう。`:`「${c.title}」をマスター。次は「${next.title}」で新しいモジュールが解放されます。`):endMsg),
+    h('h4',{},open?'CHAPTER CLEAR!':isMix()?'STAGE 1 CLEAR!':'ALL CLEAR!'),
+    h('p',{},open?(!isSound()?`「${c.title}」をマスター。次は「${next.title}」へ進もう。`:`「${c.title}」をマスター。次は「${next.title}」で新しいモジュールが解放されます。`):endMsg),
     open?h('button',{class:'next',onclick:()=>goCh(nextI)},'NEXT → CH.'+chLabel(nextI)):(isBeat()?h('button',{class:'next',onclick:()=>setCourse('sound')},'SOUND コースへ →'):null));
   g.append(clr);
   $$('.mod,.perform').forEach(m=>m.classList.remove('focus'));
@@ -574,6 +584,7 @@ function renderGuide(){
 function redrawAll(){drawEnv();drawFilt();drawLfo();drawSpace();drawRender();}
 function applyLocks(){
   if(isBeat()){ beat.applyLocks(); return; }
+  if(isMix()){ mixer.applyLocks(); return; }
   const r=P.reach;
   $('#m-env').classList.toggle('locked',r<2);
   $('#m-filter').classList.toggle('locked',r<3);
@@ -592,7 +603,7 @@ function applyLocks(){
 }
 function goCh(i){
   const L=chs(); if(!L[i]||L[i].soon)return;
-  if(isBeat()){ P.bch=i; P.breach=Math.max(P.breach||0,i); } else { P.ch=i; P.reach=Math.max(P.reach,i); }
+  if(isBeat()){ P.bch=i; P.breach=Math.max(P.breach||0,i); } else if(isMix()){ P.mch=i; P.mreach=Math.max(P.mreach||0,i); } else { P.ch=i; P.reach=Math.max(P.reach,i); }
   for(const k of L[i].terms) if(!P.learned.includes(k))P.learned.push(k);
   save(); renderTabs(); renderGuide(); applyLocks(); if(isBeat())beat.paint();
   if(isMobile()&&document.body.dataset.mtab!=='guide')setMTab('guide');
@@ -600,8 +611,8 @@ function goCh(i){
   if(innerWidth<920)scrollTo({top:0,behavior:'smooth'});
 }
 
-function setCourse(c: 'sound'|'beat'){
-  if(c!==P.course){ tStop(); beat.stop(); padUp(); }
+function setCourse(c: Course){
+  if(c!==P.course){ tStop(); beat.stop(); mixer.stop(); padUp(); }
   P.course=c; document.body.dataset.course=c; hideTip();
   goCh(chI());
   if(isMobile())setMTab('guide');
@@ -658,7 +669,7 @@ $('#glossClose').onclick=()=>$('#glossary').classList.remove('show');
 $('#glossary').addEventListener('click',e=>{ if(e.target.id==='glossary')$('#glossary').classList.remove('show'); });
 
 $('#recipeBtn').onclick=()=>{
-  const txt=JSON.stringify(isBeat()?beat.json():projectJSON(),null,2);
+  const txt=JSON.stringify(isBeat()?beat.json():isMix()?mixer.json():projectJSON(),null,2);
   try{ navigator.clipboard.writeText(txt).then(()=>toast('RECIPE COPIED — プロジェクト全体の設定をコピーしました'),()=>toast('コピーできませんでした')); }catch(e){ toast('コピーできませんでした'); }
 };
 /* iPhone はマナーモードだと Web Audio が鳴らないため、
@@ -672,10 +683,11 @@ function unlockIOSAudio(){
 }
 document.body.dataset.mtab='guide';
 $$('#mtabs button').forEach(b=>b.onclick=()=>setMTab(b.dataset.tab));
-const startWith=(c: 'sound'|'beat')=>{ unlockIOSAudio(); ctx.resume(); $('#start').classList.remove('show'); setCourse(c);
+const startWith=(c: Course)=>{ unlockIOSAudio(); ctx.resume(); $('#start').classList.remove('show'); setCourse(c);
   if(c==='sound')demo({wave:'sine',freq:880,a:.005,d:.6,s:0,r:.6,_dur:.7}); };
 $('#go').onclick=()=>startWith('sound');
 $('#goBeat').onclick=()=>startWith('beat');
+$('#goMix').onclick=()=>startWith('mix');
 
 addEventListener('resize',redrawAll);
 /* timeline bindings */

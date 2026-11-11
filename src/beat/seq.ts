@@ -506,3 +506,16 @@ export function createBeat(D: BeatDeps){
     json: () => ({ app: 'otolab-beat', v: 2, ...JSON.parse(JSON.stringify(B)) }),
   };
 }
+
+/** MIX コース用：保存された BEAT の曲を「小節の並び」に変換する（SONG → CHAIN → PATTERN の順で今のモードに合わせる） */
+export function beatMaterial(saved: any, lib: (id: string) => { p: Recipe } | null){
+  if (!saved) return null;
+  const B = normalize(saved);
+  let list: number[];
+  if (B.mode === 'song' && B.song.length) list = B.song.flatMap(b => new Array(b.bars).fill(b.p));
+  else if (B.mode === 'chain' && B.chain.some(x => x >= 0)) list = B.chain.filter(x => x >= 0);
+  else list = [B.cur];
+  const bars = list.map(pi => ({ d: B.pats[pi], n: B.notes[pi], au: B.auto[pi] }));
+  if (!bars.some(b => b.d.some(r => r.some(v => v > 0)) || b.n.some(t => t.length))) return null;
+  return { bpm: B.bpm, swing: B.swing, acid: B.acid, bars, srcs: B.src.map(id => id ? (lib(id)?.p || null) : null) };
+}
