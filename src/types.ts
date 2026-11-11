@@ -9,6 +9,8 @@ export interface Recipe {
   ftype: FilterType; cutoff: number; res: number;
   lfoTarget: LfoTarget; lfoWave: Wave; lfoRate: number; lfoDepth: number;
   revMix: number; revTime: number; dlyTime: number; dlyFb: number; dlyMix: number;
+  /** ピッチの落下：鳴った瞬間に pdAmt 半音だけ高い所から、pdTime 秒で元の高さへ落ちる（キックの「ドゥン」） */
+  pdAmt: number; pdTime: number;
 }
 /** お手本などで使う一時的な指定（_dur: 鳴らす秒数, _sweep: カットオフの自動変化） */
 export type Preset = Partial<Recipe> & { _dur?: number; _sweep?: [number, number]; beat?: any };
@@ -25,7 +27,7 @@ export interface Step {
   ghost?: Record<number, number[]>;
   /** BEAT コース：ピアノロールの目印（t = 0 BASS / 1 ACID / 2 CHORD） */
   ghostN?: { t: number; notes: { s: number; n: number; len?: number }[] };
-  act?: { label: string; action: 'loadSample' };
+  act?: { label: string; action: 'loadSample' | 'gotoBeat' };
   c: (e: any) => boolean;
 }
 export interface Chapter { soon?: number; tag: string; title: string; intro: string; terms: string[]; mods: string[]; steps: Step[] }

@@ -6,7 +6,9 @@ import { drum, type DrumKind } from '../audio/drums';
 import { bassNote, acidNote, chordNote, type AcidParams } from '../audio/synth';
 import { toWav } from '../audio/wav';
 import { SAMPLE_BEAT, type Pat, type BeatDemo } from '../data/beatChapters';
-import { makeGraph, schedStep, toBar, emptyAuto, swingOff, type Note, type Auto, type BarData } from './engine';
+import { makeGraph, schedStep, toBar, emptyAuto, swingOff, playRecipe, type Note, type Auto, type BarData, type Srcs } from './engine';
+import { m2f } from '../audio/synth';
+import type { Recipe } from '../types';
 
 /* ================= BEAT コース：シーケンサー =================
    ドラム4トラック（ステップ）＋ノート3トラック（ピアノロール）× パターン A〜D。
@@ -20,6 +22,8 @@ export interface BeatProj {
   cur: number; chain: number[]; mode: 'pat' | 'chain' | 'song';
   mute: boolean[]; solo: boolean[];
   ntr: number; view: number[]; triad: boolean; autoT: 'acid' | 'master';
+  /** トラックの音源（SOUND LIBRARY の id、null = 内蔵） */
+  src: (string | null)[];
 }
 export const TRK = [
   { name: 'KICK', col: 'var(--orange)' }, { name: 'CLAP', col: 'var(--blue)' },
@@ -45,7 +49,7 @@ export const sampleProj = (): BeatProj => ({ bpm: SAMPLE_BEAT.bpm, swing: SAMPLE
   pats: [cp(SAMPLE_BEAT.pat), empty(), empty(), empty()], notes: [0, 1, 2, 3].map(emptyN), auto: [0, 1, 2, 3].map(emptyAuto),
   acid: { ...DEF_ACID }, key: { root: 9, lock: false }, song: [],
   cur: 0, chain: [0, -1, -1, -1], mode: 'pat', mute: new Array(7).fill(false), solo: new Array(7).fill(false),
-  ntr: 0, view: [...DEF_VIEW], triad: false, autoT: 'acid' });
+  ntr: 0, view: [...DEF_VIEW], triad: false, autoT: 'acid', src: new Array(7).fill(null) });
 const onSets = (p: Pat) => p.map(r => r.map((v, i) => v > 0 ? i : -1).filter(i => i >= 0));
 
 export interface BeatDeps {
@@ -53,6 +57,8 @@ export interface BeatDeps {
   emit(e: any): void; save(bp: BeatProj): void; toast(s: string): void;
   saved?: any; reach(): number; ghost(): Record<number, number[]> | null;
   ghostN(): { t: number; notes: { s: number; n: number; len?: number }[] } | null;
+  lib(id: string): { name: string; p: Recipe } | null;
+  pickSource(cur: string | null, cb: (id: string | null) => void): void;
 }
 
 /** 保存データを今の形式にそろえる（第1段階のデータもそのまま読める） */
@@ -66,6 +72,7 @@ function normalize(s: any): BeatProj {
   B.chain = [0, 1, 2, 3].map(i => s?.chain?.[i] ?? d.chain[i]);
   B.mute = Array.from({ length: 7 }, (_, i) => !!s?.mute?.[i]); B.solo = Array.from({ length: 7 }, (_, i) => !!s?.solo?.[i]);
   B.view = [0, 1, 2].map(i => s?.view?.[i] ?? DEF_VIEW[i]);
+  B.src = Array.from({ length: 7 }, (_, i) => s?.src?.[i] || null);
   return B;
 }
 
@@ -77,6 +84,13 @@ export function createBeat(D: BeatDeps){
   const save = () => D.save(JSON.parse(JSON.stringify(B)));
   const R = (n: number) => D.reach() >= n;
   const kickless = (pi: number) => B.pats[pi][0].every(v => v === 0);
+  /* ---- トラックの音源（SOUND LIBRARY） ---- */
+  const srcs = (): Srcs => B.src.map(id => id ? (D.lib(id)?.p || null) : null);
+  const srcName = (i: number) => { const id = B.src[i]; const it = id ? D.lib(id) : null; return it ? it.name : (i < 4 ? '909' : 'BUILT-IN'); };
+  const wentBuiltin = new Array(7).fill(false); let srcCmp = false;
+  function chooseSrc(i: number){ D.pickSource(B.src[i], id => {
+    const old = B.src[i]; if (old && !id) wentBuiltin[i] = true; if (id && wentBuiltin[i]) srcCmp = true;
+    B.src[i] = id; edited(); D.toast(`${i < 4 ? TRK[i].name : NTRK[i - 4].name} → ${srcName(i)}`); }); }
 
   /* ---- ミュート／ソロ（0〜3 ドラム、4〜6 ノート） ---- */
   const audible = (i: number) => !B.mute[i] && (!B.solo.some(Boolean) || B.solo[i]);
@@ -97,10 +111,10 @@ export function createBeat(D: BeatDeps){
   const swingOf = () => abBypass ? .5 : B.swing;
   const barData = (pi: number): BarData => ({ d: B.pats[pi], n: B.notes[pi], au: B.auto[pi] });
   function tick(){
-    const sd = stepDur(), list = playList();
+    const sd = stepDur(), list = playList(), ss = srcs();
     while (nextT < ctx.currentTime + .12) {
       const pos = gstep % 16, bar = Math.floor(gstep / 16) % list.length, pi = list[bar];
-      schedStep(ctx, G, noise, barData(pi), pos, nextT - pos * sd, sd, swingOf(), B.acid);
+      schedStep(ctx, G, noise, barData(pi), pos, nextT - pos * sd, sd, swingOf(), B.acid, ss);
       queue.push({ t: nextT + swingOff(pos, sd, swingOf()), pos, bar, pi });
       nextT += sd; gstep++;
     }
@@ -152,7 +166,8 @@ export function createBeat(D: BeatDeps){
       P: D4[B.cur], V: cp(B.pats[B.cur]), A: D4[0], B: D4[1], D: D4,
       notes: B.notes.map(cpN), N: cpN(B.notes[B.cur]), auto: JSON.parse(JSON.stringify(B.auto)),
       acid: { ...B.acid }, key: { ...B.key }, song: B.song.map(b => ({ ...b })), songBars: songBars().length,
-      acidSweep: cutMax - cutMin >= .35, mute: [...B.mute], solo: [...B.solo], hiSwing, playing, ...extra };
+      acidSweep: cutMax - cutMin >= .35, mute: [...B.mute], solo: [...B.solo], hiSwing, playing,
+      src: srcs().map(Boolean), srcCmp, ...extra };
   }
   function edited(){ save(); paint(); D.emit(summary('edit')); if (playing) D.emit(summary('seq')); }
 
@@ -184,10 +199,11 @@ export function createBeat(D: BeatDeps){
     h('span', { style: 'flex:1' }), sampleBtn, restoreBtn, clearBtn));
 
   const ms = (i: number, k: 'mute' | 'solo') => h('button', { class: 'ms', 'data-trk': i, 'data-k': k, 'data-term': k, onclick: () => { B[k][i] = !B[k][i]; updateMix(); edited(); } }, k === 'mute' ? 'M' : 'S');
+  const srcChip = (i: number) => lockWrap(h('button', { class: 'srcchip', 'data-src': i, 'data-term': 'library', title: 'クリックで音源を切り替え（SOUND LIBRARY）', onclick: () => chooseSrc(i) }, ''), 13);
   const grid = h('div', { class: 'bgrid' });
   const cells: HTMLElement[][] = [];
   TRK.forEach((tr, i) => {
-    const head = h('div', { class: 'bhead' }, h('span', { class: 'bname' }, h('i', { style: `background:${tr.col}` }), tr.name), h('span', { class: 'bms' }, ms(i, 'mute'), ms(i, 'solo')));
+    const head = h('div', { class: 'bhead' }, h('span', { class: 'bname' }, h('i', { style: `background:${tr.col}` }), tr.name, srcChip(i)), h('span', { class: 'bms' }, ms(i, 'mute'), ms(i, 'solo')));
     const row = h('div', { class: 'bsteps' }); row.style.setProperty('--tc', tr.col);
     cells[i] = [];
     for (let s = 0; s < 16; s++) { const c = h('div', { class: 'bc' + (Math.floor(s / 4) % 2 ? ' g4' : '') }, h('i', {})); bindCell(c, i, s); cells[i].push(c); row.append(c); }
@@ -212,7 +228,8 @@ export function createBeat(D: BeatDeps){
       c.addEventListener('pointermove', mv); c.addEventListener('pointerup', up); c.addEventListener('pointercancel', up);
     });
   }
-  const hit = (tr: number, v: number) => { if (ctx.state !== 'running') ctx.resume(); drum(ctx, G.tg[tr], noise, tr as DrumKind, ctx.currentTime + .005, v); };
+  const hit = (tr: number, v: number) => { if (ctx.state !== 'running') ctx.resume(); const sp = srcs()[tr], t = ctx.currentTime + .005;
+    if (sp) playRecipe(ctx, G, tr, sp, sp.freq, t, Math.max(stepDur(), Math.min(sp.a + sp.d, .5)), v); else drum(ctx, G.tg[tr], noise, tr as DrumKind, t, v); };
 
   // パターン／チェーン／モード／書き出し
   let sel: Note | null = null;
@@ -247,7 +264,8 @@ export function createBeat(D: BeatDeps){
   const octDn = h('button', { class: 'ib', 'data-term': 'octave', onclick: () => { B.view[B.ntr] = Math.max(12, B.view[B.ntr] - 12); edited(); } }, 'OCT −');
   const octUp = h('button', { class: 'ib', 'data-term': 'octave', onclick: () => { B.view[B.ntr] = Math.min(72, B.view[B.ntr] + 12); edited(); } }, 'OCT ＋');
   const clrN = h('button', { class: 'ib', title: '今のトラック・パターンのノートを消す', onclick: () => { backup = JSON.stringify(B); B.notes[B.cur][B.ntr] = []; sel = null; restoreBtn.hidden = false; edited(); D.toast(`${NTRK[B.ntr].name}（PATTERN ${PNAME[B.cur]}）のノートを消去しました`); } }, 'CLEAR');
-  rollRoot.append(h('div', { class: 'tlbar' }, h('div', { class: 'seg bseg ntseg' }, ...ntBtns), nms, keyGrp, lockWrap(lockBtn, 9), lockWrap(triadBtn, 9),
+  const nChip = lockWrap(h('button', { class: 'srcchip', 'data-term': 'library', title: 'クリックで音源を切り替え（SOUND LIBRARY）', onclick: () => chooseSrc(4 + B.ntr) }, ''), 13);
+  rollRoot.append(h('div', { class: 'tlbar' }, h('div', { class: 'seg bseg ntseg' }, ...ntBtns), nms, nChip, keyGrp, lockWrap(lockBtn, 9), lockWrap(triadBtn, 9),
     h('span', { style: 'flex:1' }), octDn, octUp, clrN));
   const acidKnobs = ([['cut', 'CUTOFF', 'cutoff'], ['res', 'RESO', 'resonance'], ['env', 'ENV MOD', 'envmod'], ['dec', 'DECAY', 'decay']] as const).map(([k, lab, term]) =>
     reemit(createKnob({ small: true, label: lab, term, get: () => B.acid[k], set: v => { B.acid[k] = v; if (k === 'cut' && playing) { cutMin = Math.min(cutMin, v); cutMax = Math.max(cutMax, v); } save(); },
@@ -288,6 +306,7 @@ export function createBeat(D: BeatDeps){
   const mono = () => B.ntr !== 2;
   function resolveOverlap(n: Note){ if (!mono()) return; B.notes[B.cur][B.ntr] = notesT().filter(q => q === n || q.s + q.len <= n.s || q.s >= n.s + n.len); }
   function preview(n: number, len = 1){ if (playing) return; if (ctx.state !== 'running') ctx.resume(); const t = ctx.currentTime + .005, sd = stepDur();
+    const sp = srcs()[4 + B.ntr]; if (sp) { playRecipe(ctx, G, 4 + B.ntr, sp, m2f(n), t, len * sd, 1); return; }
     if (B.ntr === 0) bassNote(ctx, G.tg[4], t, len * sd, n); else if (B.ntr === 1) acidNote(ctx, G.tg[5], t, len * sd * .82, n, B.acid); else chordNote(ctx, G.tg[6], t, len * sd, n); }
   function triadOf(n: number): number[] {
     if (!inScale(n)) return [n, n + 3, n + 7];
@@ -343,6 +362,7 @@ export function createBeat(D: BeatDeps){
     if (B.ntr === 1) {
       insp.append(lockWrap(h('button', { class: 'ib' + (n.acc ? ' on' : ''), 'data-term': 'accent', onclick: () => { n.acc = !n.acc; edited(); } }, 'ACCENT'), 8),
         lockWrap(h('button', { class: 'ib' + (n.sl ? ' on' : ''), 'data-term': 'slide', onclick: () => { n.sl = !n.sl; edited(); } }, 'SLIDE →'), 8));
+      if (B.src[5]) insp.append(h('span', { class: 'hint' }, 'SOUND の音色では SLIDE は効きません（ACCENT は少し強く鳴ります）'));
     }
     insp.append(h('button', { class: 'ib del', onclick: () => { B.notes[B.cur][B.ntr] = notesT().filter(q => q !== n); sel = null; edited(); } }, 'DELETE'));
   }
@@ -435,7 +455,9 @@ export function createBeat(D: BeatDeps){
     keyV.textContent = NN[B.key.root];
     lockBtn.textContent = 'SCALE LOCK: ' + (B.key.lock ? 'ON' : 'OFF'); lockBtn.classList.toggle('on', B.key.lock);
     triadBtn.textContent = 'TRIAD: ' + (B.triad ? 'ON' : 'OFF'); triadBtn.classList.toggle('on', B.triad); triadBtn.style.display = B.ntr === 2 ? '' : 'none';
-    acidRow.style.display = B.ntr === 1 ? '' : 'none';
+    acidRow.style.display = B.ntr === 1 && !B.src[5] ? '' : 'none';
+    $$('.srcchip[data-src]').forEach(b => { const i = +b.dataset.src; b.textContent = srcName(i); b.classList.toggle('my', !!srcs()[i]); });
+    nChip.textContent = srcName(4 + B.ntr); nChip.classList.toggle('my', !!srcs()[4 + B.ntr]);
     renderRoll(); paintAuto(); renderSong();
     paintHead(headPos, headPi, headBar);
     if (!stat.textContent || !stat.textContent.includes('VEL')) stat.textContent = R(5) ? '光っているマスを上下にドラッグで強さ（ベロシティ）を変更' : 'マスをクリックで ON／OFF';
@@ -461,7 +483,8 @@ export function createBeat(D: BeatDeps){
     const off = new OAC(2, Math.ceil(len * sr), sr);
     const nb = makeNoiseBuffer(off), og = makeGraph(off, off.destination);
     og.tg.forEach((g, i) => g.gain.value = audible(i) ? 1 : 0);
-    for (let b = 0; b < bars; b++) { const bd = barData(list[b % list.length]); for (let s = 0; s < 16; s++) schedStep(off, og, nb, bd, s, b * 16 * sd, sd, B.swing, B.acid); }
+    const ss = srcs();
+    for (let b = 0; b < bars; b++) { const bd = barData(list[b % list.length]); for (let s = 0; s < 16; s++) schedStep(off, og, nb, bd, s, b * 16 * sd, sd, B.swing, B.acid, ss); }
     rStat.textContent = 'RENDERING…';
     const buf = await off.startRendering();
     let pk = 0; for (let ch = 0; ch < 2; ch++) { const d = buf.getChannelData(ch); for (let i = 0; i < d.length; i++) pk = Math.max(pk, Math.abs(d[i])); }

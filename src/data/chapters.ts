@@ -96,4 +96,18 @@ export const CH: Chapter[] = [
    {id:'9-4',focus:'master',t:'⇩ WAV を押して書き出そう。できあがった WAV ファイルは、ゲームや動画、プレゼンにそのまま使えます。',c:e=>e.type==='download'},
    {id:'9-5',focus:'tl',t:'総仕上げ：3トラック以上を重ね、リバーブを使った「自分だけの起動音」をつくって RENDER しよう。ライザー → ドーン → 広がるパッド → キラキラ、のような流れを意識すると、それらしくなります。',c:e=>e.type==='render'&&e.tr.filter(t=>t.aud&&t.n>0).length>=3&&e.tr.some(t=>t.aud&&t.n>0&&t.rev)},
   ]},
+ {tag:'DRUMS',title:'ドラムをつくる',mods:['osc','env','noise','filter'],
+  intro:'BEAT コースへの入口。キックやハイハットも、ここまでの道具で自分でつくれます。キックの正体は「高い所から一瞬で落ちる、低いサイン波」。OSC に新しく増えた DROP（ピッチの落下）と D.TIME（落ちるまでの時間）で、その「ドゥン」をつくります。できた音色は右上の LIBRARY に保存して、BEAT コースのトラックで鳴らせます。',
+  terms:['pitchdrop','library'],
+  steps:[
+   {id:'10-1',focus:'osc',demo:{wave:'sine',freq:50,a:.001,d:.4,s:0,r:.2,pdAmt:36,pdTime:.055,vol:-6,_dur:.5},t:'波形を SINE、PITCH を 120 Hz 以下にして、DROP を 12 st 以上に上げて鳴らそう。「ピュン」と落ちる低い音、これがキックの正体です。',
+    c:e=>e.type==='play'&&e.wave==='sine'&&e.freq<=120&&e.pdAmt>=12},
+   {id:'10-2',focus:'env',t:'DECAY を 0.6 s 以下、SUSTAIN を 0% にして「ドゥン」と短く切れるキックに仕上げ、右上の LIBRARY を開いて名前を「MY KICK」にして ★ 今の音色を保存 しよう。',
+    c:e=>e.type==='libsave'&&['sine','triangle'].includes(e.p.wave)&&e.p.freq<=120&&e.p.pdAmt>=12&&e.p.s<=.05&&e.p.d<=.6},
+   {id:'10-3',focus:'noise',demo:{oscLvl:0,noise:1,ftype:'highpass',cutoff:8000,a:.001,d:.05,s:0,r:.04,vol:-10,_dur:.2},t:'ハイハット：NOISE を 60% 以上・OSC LVL を 20% 以下、FILTER を HIGHPASS で CUTOFF 5 kHz 以上、DECAY を 0.15 s 以下・SUSTAIN 0% にして「チッ」をつくり、LIBRARY に保存しよう。',
+    c:e=>e.type==='libsave'&&e.p.noise>=.6&&e.p.oscLvl<=.2&&e.p.ftype==='highpass'&&e.p.cutoff>=5000&&e.p.d<=.15&&e.p.s<=.05},
+   {id:'10-4',focus:'noise',demo:{wave:'triangle',freq:220,oscLvl:.3,noise:.9,ftype:'highpass',cutoff:900,a:.001,d:.16,s:0,r:.12,revMix:.18,revTime:.8,vol:-6,_dur:.4},t:'クラップ／スネア：NOISE を 40% 以上にして、OSC LVL も 15% 以上残し（「パン」の芯になる）、DECAY 0.5 s 以下・SUSTAIN 0% の音をつくって LIBRARY に保存しよう。リバーブを少し足すと手拍子らしくなります。',
+    c:e=>e.type==='libsave'&&e.p.noise>=.4&&e.p.oscLvl>=.15&&e.p.d<=.5&&e.p.s<=.05},
+   {id:'10-5',act:{label:'▶ BEAT コースの B13 へ',action:'gotoBeat'},t:'できたドラムを、BEAT コースのシーケンサーで鳴らしてみよう（BEAT がはじめてなら、B00 から始めるのもおすすめです）。',c:e=>e.type==='gobeat'},
+  ]},
 ];

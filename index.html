@@ -17,6 +17,7 @@
   <span class="stage">BETA</span>
   <div class="course" id="courseSeg"><button data-c="sound">SOUND</button><button data-c="beat">BEAT</button></div>
   <nav class="tabs" id="tabs"></nav>
+  <button class="hbtn" id="libBtn" title="つくった音色の保存と読み込み" hidden>LIBRARY</button>
   <button class="hbtn" id="recipeBtn" title="今の音の設定をJSONでコピー">RECIPE ⧉</button>
   <button class="hbtn" id="glossBtn">用語図鑑<span class="cnt" id="glossCnt">0</span></button>
 </header>
@@ -166,6 +167,13 @@
   <h2>用語図鑑</h2>
   <div style="font-size:12px;color:var(--mute)">章を開くと、その章の用語が登録されます。▶ で音を確かめられます。</div>
   <div class="gl" id="glList"></div>
+</div></div>
+
+<div class="overlay" id="libDlg"><div class="dialog">
+  <button class="close" id="libClose">CLOSE ✕</button>
+  <h2 id="libTitle">SOUND LIBRARY</h2>
+  <div style="font-size:12px;color:var(--mute)" id="libSub"></div>
+  <div id="libBody"></div>
 </div></div>
 
 <div class="overlay show" id="start"><div class="dialog">
